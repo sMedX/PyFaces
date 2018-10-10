@@ -18,8 +18,9 @@ if __name__ == '__main__':
     filename = os.path.join(os.path.pardir, 'data', filename)
     model = FaceModel(filename)
     model.read()
-    #model.plot(step=2)
+    model.plot(step=2)
     print(model)
+    exit(0)
 
     # define fixed points
     fixed_points = landmarks.to_array(landmarks.get_list(filename))[:, 0:2]
