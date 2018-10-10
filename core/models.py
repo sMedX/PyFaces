@@ -310,19 +310,19 @@ class FaceModel:
         plt.show()
 
         fig, ax = plt.subplots(1, 3)
-        ax[0].scatter(self.shape.x, self.shape.y, color=self.color.colors, marker='.')
+        ax[0].scatter(x, y, color=self.color.colors, marker='.')
         ax[0].set_xlabel('x label')
         ax[0].set_ylabel('y label')
         ax[0].axis('equal')
         ax[0].grid(True)
 
-        ax[1].scatter(self.shape.y, self.shape.z, color=self.color.colors, marker='.')
+        ax[1].scatter(y, z, color=self.color.colors, marker='.')
         ax[1].set_xlabel('y label')
         ax[1].set_ylabel('z label')
         ax[1].axis('equal')
         ax[1].grid(True)
 
-        ax[2].scatter(self.shape.x, self.shape.z, color=self.color.colors, marker='.')
+        ax[2].scatter(x, z, color=self.color.colors, marker='.')
         ax[2].set_xlabel('x label')
         ax[2].set_ylabel('z label')
         ax[2].axis('equal')
