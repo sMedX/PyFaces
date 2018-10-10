@@ -294,9 +294,11 @@ class FaceModel:
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
 
+        x, y, z = self.shape.xyz
+
         fig = plt.figure()
         ax = fig.gca(projection='3d')
-        ax.scatter(self.shape.x[::step], self.shape.y[::step], self.shape.z[::step], c=self.color.colors[::step, :], marker='.')
+        ax.scatter(x[::step], y[::step], z[::step], c=self.color.colors[::step, :], marker='.')
         ax.set_xlabel('x label')
         ax.set_ylabel('y label')
         ax.set_zlabel('z label')
