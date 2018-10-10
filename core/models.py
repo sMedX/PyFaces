@@ -178,7 +178,6 @@ class ShapeModel(ModelBase):
             if dist[index] < threshold:
                 self._landmarks_indexes.append(index)
 
-                self._mean_landmarks = 1
 
     @property
     def xyz(self):
