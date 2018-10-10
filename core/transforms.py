@@ -216,19 +216,3 @@ class ProjectionSimilarityEuler3DTransform(SimilarityEuler3DTransform):
 
     def _compute_offset(self):
         self._offset = self.translation + self._projector @ self.center - self.matrix @ self.center
-
-
-# ======================================================================================================================
-if __name__ == '__main__':
-
-    t = Euler3DTransform()
-    t.parameters = np.zeros(6)
-    print(t)
-
-    t = SimilarityEuler3DTransform()
-    t.parameters = np.array([0, 0, 0, 0, 0, 0, 1])
-    print(t)
-
-    t = ProjectionSimilarityEuler3DTransform()
-    t.parameters = np.array([0, 0, 0, 0, 0, 1])
-    print(t)
