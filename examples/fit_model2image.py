@@ -20,7 +20,6 @@ if __name__ == '__main__':
     model.read()
     model.plot(step=2)
     print(model)
-    exit(0)
 
     # define fixed points
     fixed_points = landmarks.to_array(landmarks.get_list(filename))[:, 0:2]
@@ -39,7 +38,8 @@ if __name__ == '__main__':
     initial_parameters = np.zeros(metric.number_of_parameters)
     initial_parameters[-1] = 1
 
-    print(metric.value(parameters=initial_parameters))
+    print('initial metric value', metric.value(parameters=initial_parameters))
+    exit(0)
     print(metric.jacobian(parameters=initial_parameters))
     print(metrics)
 
