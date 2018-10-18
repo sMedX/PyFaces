@@ -71,12 +71,20 @@ class ModelBase:
         self._filename = filename
 
     @property
-    def read(self):
+    def initialize(self):
         raise NotImplementedError
 
     @property
     def number_of_components(self):
-            raise NotImplementedError
+        raise NotImplementedError
+
+    @property
+    def jacobian(self):
+        raise NotImplementedError
+
+    @property
+    def landmarks_jacobian(self):
+        raise NotImplementedError
 
     @property
     def representer(self):
@@ -129,7 +137,15 @@ class ExpressionModel(ModelBase):
     def number_of_parameters(self):
         return self.number_of_components
 
-    def read(self):
+    @property
+    def jacobian(self):
+        return self._basis
+
+    @property
+    def landmarks_jacobian(self):
+        return self._landmarks_basis
+
+    def initialize(self):
         self._representer = Representer(filename=self.filename)
         self._representer.read()
 
@@ -175,6 +191,9 @@ class ShapeModel(ModelBase):
         self._landmarks_mean = None
         self._landmarks_basis = None
 
+        self._jacobian = None
+        self._landmarks_jacobian = None
+
         super().__init__(filename=filename)
 
     def __repr__(self):
@@ -193,7 +212,7 @@ class ShapeModel(ModelBase):
     def expressions(self):
         return self._expressions
 
-    def read(self):
+    def initialize(self):
         # read representer
         self._representer = Representer(filename=self.filename)
         self._representer.read()
@@ -214,7 +233,10 @@ class ShapeModel(ModelBase):
         # read expressions model
         self._expressions = ExpressionModel(filename=self.filename)
         self._expressions.landmarks_indexes = self._landmarks_indexes
-        self._expressions.read()
+        self._expressions.initialize()
+
+        self._jacobian = np.concatenate((self._basis, self.expressions.jacobian), axis=1)
+        self._landmarks_jacobian = np.concatenate((self._landmarks_basis, self.expressions.landmarks_jacobian), axis=1)
 
     def _define_landmarks_indexes(self):
 
@@ -262,6 +284,14 @@ class ShapeModel(ModelBase):
     def landmarks(self):
         return self._landmarks
 
+    @property
+    def jacobian(self):
+        return self._jacobian
+
+    @property
+    def landmarks_jacobian(self):
+        return self._landmarks_jacobian
+
     def transform(self, parameters):
         if len(parameters) < self.number_of_parameters:
             raise ValueError('wrong length of parameters')
@@ -305,7 +335,7 @@ class ColorModel(ModelBase):
     def colors(self):
         return np.reshape(self._mean, [int(len(self._mean)/3), 3])
 
-    def read(self):
+    def initialize(self):
         with h5py.File(self.filename, 'r') as hf:
             self._mean = np.array(hf['color/model/mean'])
             self._basis = np.array(hf['color/model/pcaBasis'])
@@ -338,8 +368,8 @@ class FaceModel:
         return self._color
 
     def initialize(self):
-        self._shape.read()
-        self._color.read()
+        self._shape.initialize()
+        self._color.initialize()
 
     def plot(self, step=5):
         import matplotlib.pyplot as plt
