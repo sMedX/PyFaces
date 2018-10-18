@@ -74,7 +74,7 @@ class LandmarksShapeModelMetric(ModelMetricBase):
         """
 
         # transform landmarks
-        points = self.model.transform(parameters)
+        points = self.model.transform_landmarks(parameters)
 
         # apply spatial transform to landmarks
         self.transform.parameters = parameters[self.model.number_of_parameters:]
@@ -91,7 +91,7 @@ class LandmarksShapeModelMetric(ModelMetricBase):
         :return: jacobian
         """
 
-        return jacobian
+        return None
 
 
     def initial_position(self):

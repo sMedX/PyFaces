@@ -165,7 +165,6 @@ class SimilarityEuler3DTransform(Euler3DTransform):
         if self.scale <= 0:
             raise ValueError('wrong value for scale in array of parameters')
 
-
     def jacobian(self, parameters):
         self.parameters = parameters
 

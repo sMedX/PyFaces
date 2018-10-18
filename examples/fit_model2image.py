@@ -17,8 +17,8 @@ if __name__ == '__main__':
     # read face model
     filename = os.path.join(os.path.pardir, 'data', filename)
     model = FaceModel(filename)
-    model.read()
-    model.plot(step=2)
+    model.initialize()
+    #model.plot(step=2)
     print(model)
 
     # define fixed points

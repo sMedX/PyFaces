@@ -5,35 +5,12 @@ import numpy as np
 import core.landmarks as landmarks
 
 
-class ModelBase:
-    """Base class for model."""
-    def __init__(self, filename=None):
-        self._filename = filename
-        self._is_valid = True
-
-    @property
-    def filename(self):
-        return self._filename
-
-    @filename.setter
-    def filename(self, filename):
-        self._filename = filename
-
-    @property
-    def read(self):
-        raise NotImplementedError
-
-    @property
-    def number_of_components(self):
-            raise NotImplementedError
-
-
 # data to represent surface
-class Representer(ModelBase):
+class Representer:
     def __init__(self, filename=None):
+        self._filename = filename
         self._cells = None
         self._points = None
-        super().__init__(filename=filename)
 
     def __repr__(self):
         """Representation of representer"""
@@ -43,6 +20,10 @@ class Representer(ModelBase):
             'cells {}\n'.format(self.cells.shape)
         )
         return info
+
+    @property
+    def filename(self):
+        return self._filename
 
     @property
     def number_of_points(self):
@@ -72,12 +53,61 @@ class Representer(ModelBase):
             self._cells = hf['shape/representer/cells'].value
 
 
+class ModelBase:
+    """Base class for model."""
+    def __init__(self, filename=None):
+        self._filename = filename
+
+        self._representer = None
+        self._landmarks = None
+        self._landmarks_indexes = None
+
+    @property
+    def filename(self):
+        return self._filename
+
+    @filename.setter
+    def filename(self, filename):
+        self._filename = filename
+
+    @property
+    def read(self):
+        raise NotImplementedError
+
+    @property
+    def number_of_components(self):
+            raise NotImplementedError
+
+    @property
+    def representer(self):
+        return self._representer
+
+    @property
+    def number_of_landmarks(self):
+        if self._landmarks is None:
+            return None
+        else:
+            return len(self._landmarks)
+
+    @property
+    def landmarks_indexes(self):
+        return self._landmarks_indexes
+
+    @landmarks_indexes.setter
+    def landmarks_indexes(self, indexes):
+        self._landmarks_indexes = indexes
+
+
 # expression model
 class ExpressionModel(ModelBase):
     def __init__(self, filename=None):
         self._mean = None
         self._basis = None
         self._variance = None
+
+        self._landmarks_mean = None
+        self._landmarks_basis = None
+
         super().__init__(filename=filename)
 
     def __repr__(self):
@@ -100,30 +130,51 @@ class ExpressionModel(ModelBase):
         return self.number_of_components
 
     def read(self):
+        self._representer = Representer(filename=self.filename)
+        self._representer.read()
+
         with h5py.File(self.filename, 'r') as hf:
             self._mean = hf['expression/model/mean'].value
             self._basis = hf['expression/model/pcaBasis'].value
             self._variance = hf['expression/model/pcaVariance'].value
 
+        self._compute_landmarks_data()
+
+    def _compute_landmarks_data(self):
+        mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
+        mean = mean[self._landmarks_indexes]
+        self._landmarks_mean = np.reshape(mean, mean.shape[0]*mean.shape[1])
+
+        basis = np.reshape(self._basis, [self.representer.number_of_points, self.representer.dimension, self.number_of_components])
+        basis = basis[self._landmarks_indexes]
+        self._landmarks_basis = np.reshape(basis, [basis.shape[0]*basis.shape[1], basis.shape[2]])
+
     def transform(self, parameters):
         if len(parameters) < self.number_of_components:
             raise ValueError('wrong length of parameters')
 
-        points = self._mean + self._basis @ parameters[:self.number_of_components]
-        return points
+        return self._mean + self._basis @ parameters[:self.number_of_components]
+
+    def transform_landmarks(self, parameters):
+        if len(parameters) < self.number_of_components:
+            raise ValueError('wrong length of parameters')
+
+        return self._landmarks_mean + self._landmarks_basis @ parameters[:self.number_of_components]
 
 
 # shape model
 class ShapeModel(ModelBase):
     def __init__(self, filename=None):
+        self._expressions = None
+
         self._center = None
         self._mean = None
         self._basis = None
         self._variance = None
-        self._representer = Representer(filename=filename)
-        self._expressions = ExpressionModel(filename=filename)
-        self._landmarks = None
-        self._landmarks_indexes = None
+
+        self._landmarks_mean = None
+        self._landmarks_basis = None
+
         super().__init__(filename=filename)
 
     def __repr__(self):
@@ -139,20 +190,15 @@ class ShapeModel(ModelBase):
         return info
 
     @property
-    def representer(self):
-        return self._representer
-
-    @property
     def expressions(self):
         return self._expressions
 
     def read(self):
-        self._representer.filename = self.filename
+        # read representer
+        self._representer = Representer(filename=self.filename)
         self._representer.read()
 
-        self._expressions.filename = self.filename
-        self._expressions.read()
-
+        # read shape model
         with h5py.File(self.filename, 'r') as hf:
             self._mean = hf['shape/model/mean'].value
             self._basis = hf['shape/model/pcaBasis'].value
@@ -161,23 +207,37 @@ class ShapeModel(ModelBase):
         x, y, z = self.xyz
         self._center = np.array([np.mean(x), np.mean(y), np.mean(z)])
 
+        self._landmarks = landmarks.get_list(self.filename)
         self._define_landmarks_indexes()
+        self._compute_landmarks_data()
+
+        # read expressions model
+        self._expressions = ExpressionModel(filename=self.filename)
+        self._expressions.landmarks_indexes = self._landmarks_indexes
+        self._expressions.read()
 
     def _define_landmarks_indexes(self):
-        self._landmarks = landmarks.get_list(self.filename)
-
-        self._landmarks_indexes = []
-        mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
 
         threshold = 10
+        shape = [self.representer.number_of_points, self.representer.dimension]
+
+        self._landmarks_indexes = []
 
         for pair in self._landmarks:
-            dist = np.sum(pow(mean - pair.point, 2), axis=1)
+            dist = np.sum(pow(self._mean.reshape(shape) - pair.point, 2), axis=1)
             index = np.argmin(dist)
 
             if dist[index] < threshold:
                 self._landmarks_indexes.append(index)
 
+    def _compute_landmarks_data(self):
+        mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
+        mean = mean[self._landmarks_indexes]
+        self._landmarks_mean = np.reshape(mean, mean.shape[0]*mean.shape[1])
+
+        basis = np.reshape(self._basis, [self.representer.number_of_points, self.representer.dimension, self.number_of_components])
+        basis = basis[self._landmarks_indexes]
+        self._landmarks_basis = np.reshape(basis, [basis.shape[0]*basis.shape[1], basis.shape[2]])
 
     @property
     def xyz(self):
@@ -188,19 +248,11 @@ class ShapeModel(ModelBase):
         if self._basis is None:
             return None
         else:
-            return self._basis.shape[1]
-
-    @property
-    def number_of_points(self):
-        return int(len(self._mean)/self.representer.dimension)
+            return self._basis.shape[-1]
 
     @property
     def number_of_parameters(self):
         return self.number_of_components + self.expressions.number_of_components
-
-    @property
-    def number_points(self):
-        return len(self._mean)
 
     @property
     def center(self):
@@ -210,21 +262,21 @@ class ShapeModel(ModelBase):
     def landmarks(self):
         return self._landmarks
 
-    @property
-    def number_of_landmarks(self):
-        if self._landmarks is None:
-            return None
-        else:
-            return len(self._landmarks)
-
     def transform(self, parameters):
         if len(parameters) < self.number_of_parameters:
             raise ValueError('wrong length of parameters')
 
-        points = self._mean + self._basis @ parameters[:self.number_of_components] + \
-                 self.expressions.transform(parameters[self.number_of_components:])
+        points = self._mean + self._basis @ parameters[:self.number_of_components] + self.expressions.transform(parameters[self.number_of_components:])
+        return points
 
-        return points.reshape([self.number_of_points, self.representer.dimension])[self._landmarks_indexes, :]
+    def transform_landmarks(self, parameters):
+        if len(parameters) < self.number_of_parameters:
+            raise ValueError('wrong length of parameters')
+
+        points = self._landmarks_mean + self._landmarks_basis @ parameters[:self.number_of_components] + \
+                 self.expressions.transform_landmarks(parameters[self.number_of_components:])
+
+        return points
 
 
 # color model
@@ -285,7 +337,7 @@ class FaceModel:
     def color(self):
         return self._color
 
-    def read(self):
+    def initialize(self):
         self._shape.read()
         self._color.read()
 
