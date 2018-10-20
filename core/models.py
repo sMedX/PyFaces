@@ -62,6 +62,8 @@ class ModelBase:
         self._landmarks = None
         self._landmarks_indexes = None
 
+        self._number_of_used_components = None
+
     @property
     def filename(self):
         return self._filename
@@ -71,7 +73,11 @@ class ModelBase:
         self._filename = filename
 
     @property
-    def initialize(self):
+    def number_of_used_components(self):
+        return self._number_of_used_components
+
+    @number_of_used_components.setter
+    def number_of_used_components(self, components):
         raise NotImplementedError
 
     @property
@@ -105,6 +111,9 @@ class ModelBase:
     def landmarks_indexes(self, indexes):
         self._landmarks_indexes = indexes
 
+    def initialize(self):
+        raise NotImplementedError
+
 
 # expression model
 class ExpressionModel(ModelBase):
@@ -132,10 +141,6 @@ class ExpressionModel(ModelBase):
             return None
         else:
             return self._basis.shape[1]
-
-    @property
-    def number_of_parameters(self):
-        return self.number_of_components
 
     @property
     def jacobian(self):
@@ -273,8 +278,8 @@ class ShapeModel(ModelBase):
             return self._basis.shape[-1]
 
     @property
-    def number_of_parameters(self):
-        return self.number_of_components + self.expressions.number_of_components
+    def number_of_used_components(self):
+        return self._number_of_used_components
 
     @property
     def center(self):
@@ -293,14 +298,14 @@ class ShapeModel(ModelBase):
         return self._landmarks_jacobian
 
     def transform(self, parameters):
-        if len(parameters) < self.number_of_parameters:
+        if len(parameters) < self.number_of_used_components:
             raise ValueError('wrong length of parameters')
 
         points = self._mean + self._basis @ parameters[:self.number_of_components] + self.expressions.transform(parameters[self.number_of_components:])
         return points
 
     def transform_landmarks(self, parameters):
-        if len(parameters) < self.number_of_parameters:
+        if len(parameters) < self.number_of_used_components:
             raise ValueError('wrong length of parameters')
 
         points = self._landmarks_mean + self._landmarks_basis @ parameters[:self.number_of_components] + \
@@ -413,62 +418,3 @@ class FaceModel:
         ax[2].grid(True)
         plt.show()
         return
-
-
-# # ==================================================================================================================
-# # shape model transform
-# class ModelSpatialTransform:
-#
-#     # model and model parameters
-#     _model = None
-#     _shape_parameters = None
-#
-#     # spatial transform
-#     _transform = None
-#
-#     # shape model
-#     @ property
-#     def model(self):
-#         return self._model
-#
-#     @ model.setter
-#     def model(self, model):
-#         self._model = model
-#
-#     # spatial transform
-#     @property
-#     def transform(self):
-#         return self._transform
-#
-#     @transform.setter
-#     def transform(self, transform):
-#         self._transform = transform
-#
-#     # parameters
-#     @ property
-#     def parameters(self):
-#         return np.concatenate([self.transform.parameters, self.shape_parameters])
-#
-#     @ property
-#     def transform_parameters(self):
-#         return self.transform.parameters
-#
-#     @ property
-#     def shape_parameters(self):
-#         return self._shape_parameters
-#
-#     @ parameters.setter
-#     def parameters(self, parameters):
-#
-#         # spatial transform parameters
-#         n = self.transform.number_of_parameters
-#         self.transform.parameters = parameters[:n]
-#
-#         # model parameters
-#         self._shape_parameters = parameters[n:]
-#
-#     # transform shape model
-#     def transform_points(self, parameters=None):
-#         if parameters is not None:
-#             self.parameters = parameters
-#         return self.transform.transform_points(self.model.transform_shape(self.shape_parameters))
