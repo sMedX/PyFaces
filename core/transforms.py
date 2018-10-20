@@ -70,8 +70,17 @@ class AffineTransformBase:
     def _compute_offset(self):
         self._offset = self.translation + self.center - self.matrix @ self.center
 
-    def transform_points(self, points, shape):
-        return points.reshape(shape) @ self.matrix.T + self.offset
+    def transform_points(self, points, shape=None):
+        if shape is None:
+            return points @ self.matrix.T + self.offset
+        else:
+            return points.reshape(shape) @ self.matrix.T + self.offset
+
+    def compute_jacobian_with_respect_to_parameters(self, point):
+        raise NotImplementedError
+
+    def jacobian_with_respect_to_position(self, point):
+        raise NotImplementedError
 
 
 # ======================================================================================================================
@@ -140,8 +149,9 @@ class SimilarityEuler3DTransform(Euler3DTransform):
         self._number_of_parameters = len(default_parameters)
         self._parameters = default_parameters
 
-        self._matrix = np.eye(3)   # self._compute_matrix()
-        self._offset = np.zeros(3)  # self._compute_offset()
+        self._matrix = np.eye(3)
+        self._offset = np.zeros(3)
+        self._jacobian = np.zeros([3, self.number_of_parameters])
 
     def __repr__(self):
         """Representation of transform"""
@@ -165,8 +175,45 @@ class SimilarityEuler3DTransform(Euler3DTransform):
         if self.scale <= 0:
             raise ValueError('wrong value for scale in array of parameters')
 
-    def jacobian(self, parameters):
-        self.parameters = parameters
+    def compute_jacobian_with_respect_to_parameters(self, point):
+
+        p = point - self.center
+
+        # rotation
+        angle_x, angle_y, angle_z = self.angles
+
+        cx = np.cos(angle_x)
+        sx = np.sin(angle_x)
+        cy = np.cos(angle_y)
+        sy = np.sin(angle_y)
+        cz = np.cos(angle_z)
+        sz = np.sin(angle_z)
+
+        self._jacobian[0][0] = (-sz * cx * sy) * p[0] + (sz * sx) * p[1] + (sz * cx * cy) * p[2]
+        self._jacobian[1][0] = (cz * cx * sy) * p[0] + (-cz * sx) * p[1] + (-cz * cx * cy) * p[2]
+        self._jacobian[2][0] = (sx * sy) * p[0] + cx * p[1] + (-sx * cy) * p[2]
+
+        self._jacobian[0][1] = (-cz * sy - sz * sx * cy) * p[0] + (cz * cy - sz * sx * sy) * p[2]
+        self._jacobian[1][1] = (-sz * sy + cz * sx * cy) * p[0] + (sz * cy + cz * sx * sy) * p[2]
+        self._jacobian[2][1] = (-cx * cy) * p[0] + (-cx * sy) * p[2]
+
+        self._jacobian[0][2] = (-sz * cy - cz * sx * sy) * p[0] + (-cz * cx) * p[1] + (-sz * sy + cz * sx * cy) * p[2]
+        self._jacobian[1][2] = (cz * cy - sz * sx * sy) * p[0] + (-sz * cx) * p[1] + (cz * sy + sz * sx * cy) * p[2]
+        self._jacobian[2][2] = 0
+
+        # translation
+        self._jacobian[0, 3] = 1
+        self._jacobian[1, 4] = 1
+        self._jacobian[2, 5] = 1
+
+        # scaling
+        self._jacobian[:, 6] = self.matrix @ p
+
+        return self._jacobian
+
+    def jacobian_with_respect_to_position(self, point):
+        jacobian = np.zeros([3, 3])
+        return jacobian
 
 
 # ======================================================================================================================
@@ -208,6 +255,24 @@ class ProjectionSimilarityEuler3DTransform(SimilarityEuler3DTransform):
     @property
     def projector(self):
         return self._projector
+
+    def compute_jacobian_with_respect_to_parameters(self, point):
+        jacobian = np.zeros([2, self.number_of_parameters])
+
+        # rotation
+
+        # scaling
+        p = self.matrix @ (point - self.center)
+        jacobian[:, 3] = p
+
+        # translation
+        jacobian[0, 4] = 1
+        jacobian[1, 5] = 1
+        return jacobian
+
+    def jacobian_with_respect_to_position(self, point):
+        jacobian = np.zeros([2, 3])
+        return jacobian
 
     def _compute_matrix(self):
         super()._compute_matrix()
