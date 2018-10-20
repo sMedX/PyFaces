@@ -91,8 +91,33 @@ class LandmarksShapeModelMetric(ModelMetricBase):
         :return: jacobian
         """
 
-        return None
+        # apply model transform to points
+        model_transformed_points = self.model.transform_landmarks(parameters)
 
+        shape = [self.model.number_of_landmarks, self.model.representer.dimension]
+        model_transformed_points = model_transformed_points.reshape(shape)
+
+        # apply spatial transform to points
+        self.transform.parameters = parameters[self.model.number_of_parameters:]
+        transformed_points = self.transform.transform_points(model_transformed_points)
+
+        derivatives = np.zeros(self.transform.number_of_parameters)
+
+        for fixed_point, transformed_point, model_transformed_point in zip(self.fixed_points,
+                                                                           transformed_points,
+                                                                           model_transformed_points):
+
+            # compute derivatives with respect to spatial transform parameters
+            jacobian = self.transform.compute_jacobian_with_respect_to_parameters(model_transformed_point)
+            derivatives = derivatives + jacobian.T @ (transformed_point - fixed_point)
+
+        return 2 * derivatives / self.model.number_of_landmarks
+
+        # jacobian_parameters = self.transform.compute_jacobian_with_respect_to_parameters
+        # jacobian_position = self.transform.jacobian_with_respect_to_position(model_transformed_points)
+        #
+        # jacobian = np.concatenate((jacobian_position @ self.model.landmarks_jacobian, jacobian_parameters), axis=1)
+        # return 2 * spatial_derivatives @ (transformed_points - self.fixed_points) / self.model.number_of_landmarks
 
     def initial_position(self):
         pass

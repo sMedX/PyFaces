@@ -18,13 +18,15 @@ if __name__ == '__main__':
     filename = os.path.join(os.path.pardir, 'data', filename)
     model = FaceModel(filename)
     model.initialize()
-    #model.plot(step=2)
+    model.shape.number_of_used_components = 0
+    # model.plot(step=2)
     print(model)
 
     # define fixed points
-    fixed_points = landmarks.to_array(landmarks.get_list(filename))[:, 0:2]
+    fixed_points = landmarks.to_array(landmarks.get_list(filename))#[:, 0:2]
 
-    transform = transforms.ProjectionSimilarityEuler3DTransform()
+    # initialize transform
+    transform = transforms.SimilarityEuler3DTransform() # ProjectionSimilarityEuler3DTransform()
     transform.center = model.shape.center
     print(transform)
 
@@ -38,10 +40,9 @@ if __name__ == '__main__':
     initial_parameters = np.zeros(metric.number_of_parameters)
     initial_parameters[-1] = 1
 
-    print('initial metric value', metric.value(parameters=initial_parameters))
-    exit(0)
-    print(metric.jacobian(parameters=initial_parameters))
     print(metrics)
+    print('  metric value', metric.value(parameters=initial_parameters))
+    print('jacobian value', metric.jacobian(parameters=initial_parameters))
 
     res = minimize(metric.value,
                    initial_parameters,
