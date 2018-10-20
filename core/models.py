@@ -73,6 +73,10 @@ class ModelBase:
         self._filename = filename
 
     @property
+    def number_of_parameters(self):
+        raise NotImplementedError
+
+    @property
     def number_of_used_components(self):
         return self._number_of_used_components
 
@@ -143,6 +147,18 @@ class ExpressionModel(ModelBase):
             return self._basis.shape[1]
 
     @property
+    def number_of_parameters(self):
+        return self._number_of_used_components
+
+    @property
+    def number_of_used_components(self):
+        return self._number_of_used_components
+
+    @number_of_used_components.setter
+    def number_of_used_components(self, components):
+        self._number_of_used_components = components
+
+    @property
     def jacobian(self):
         return self._basis
 
@@ -160,6 +176,7 @@ class ExpressionModel(ModelBase):
             self._variance = hf['expression/model/pcaVariance'].value
 
         self._compute_landmarks_data()
+        self._number_of_used_components = self.number_of_components
 
     def _compute_landmarks_data(self):
         mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
@@ -177,10 +194,11 @@ class ExpressionModel(ModelBase):
         return self._mean + self._basis @ parameters[:self.number_of_components]
 
     def transform_landmarks(self, parameters):
-        if len(parameters) < self.number_of_components:
+        if len(parameters) < self.number_of_parameters:
             raise ValueError('wrong length of parameters')
 
-        return self._landmarks_mean + self._landmarks_basis @ parameters[:self.number_of_components]
+        components = self.number_of_used_components
+        return self._landmarks_mean + self._landmarks_basis[:, :components] @ parameters[:components]
 
 
 # shape model
@@ -234,14 +252,12 @@ class ShapeModel(ModelBase):
         self._landmarks = landmarks.get_list(self.filename)
         self._define_landmarks_indexes()
         self._compute_landmarks_data()
+        self._number_of_used_components = self.number_of_components
 
         # read expressions model
         self._expressions = ExpressionModel(filename=self.filename)
         self._expressions.landmarks_indexes = self._landmarks_indexes
         self._expressions.initialize()
-
-        self._jacobian = np.concatenate((self._basis, self.expressions.jacobian), axis=1)
-        self._landmarks_jacobian = np.concatenate((self._landmarks_basis, self.expressions.landmarks_jacobian), axis=1)
 
     def _define_landmarks_indexes(self):
 
@@ -278,8 +294,20 @@ class ShapeModel(ModelBase):
             return self._basis.shape[-1]
 
     @property
+    def number_of_parameters(self):
+        return sum(self.number_of_used_components)
+
+    @property
     def number_of_used_components(self):
-        return self._number_of_used_components
+        return self._number_of_used_components, self.expressions.number_of_used_components
+
+    @number_of_used_components.setter
+    def number_of_used_components(self, components):
+        if components <= self.number_of_components:
+            self._number_of_used_components = components
+            self.expressions.number_of_used_components = 0
+        else:
+            self.expressions.number_of_used_components = components - self._number_of_used_components
 
     @property
     def center(self):
@@ -298,18 +326,21 @@ class ShapeModel(ModelBase):
         return self._landmarks_jacobian
 
     def transform(self, parameters):
-        if len(parameters) < self.number_of_used_components:
+        if len(parameters) < self.number_of_parameters:
             raise ValueError('wrong length of parameters')
 
         points = self._mean + self._basis @ parameters[:self.number_of_components] + self.expressions.transform(parameters[self.number_of_components:])
         return points
 
     def transform_landmarks(self, parameters):
-        if len(parameters) < self.number_of_used_components:
+        if len(parameters) < self.number_of_parameters:
             raise ValueError('wrong length of parameters')
 
-        points = self._landmarks_mean + self._landmarks_basis @ parameters[:self.number_of_components] + \
-                 self.expressions.transform_landmarks(parameters[self.number_of_components:])
+        components = self.number_of_used_components[0]
+
+        points = self._landmarks_mean + \
+                 self._landmarks_basis[:, :components] @ parameters[:components] + \
+                 self.expressions.transform_landmarks(parameters[components:])
 
         return points
 
