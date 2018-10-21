@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     # show the output image with the face detections + facial landmarks
     fig, ax = plt.subplots()
-    im = ax.imshow(cv2.cvtColor(image[::-1,:], cv2.COLOR_BGR2RGB), origin='lower')
+    im = ax.imshow(cv2.cvtColor(image[::-1, :], cv2.COLOR_BGR2RGB), origin='lower')
     ax.scatter(points[:, 0], points[:, 1], c='r', marker='.', s=5)
 
     for count, point in enumerate(points):
