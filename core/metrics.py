@@ -101,23 +101,27 @@ class LandmarksShapeModelMetric(ModelMetricBase):
         self.transform.parameters = parameters[self.model.number_of_parameters:]
         transformed_points = self.transform.transform_points(model_transformed_points)
 
-        derivatives = np.zeros(self.transform.number_of_parameters)
+        model_derivatives = np.zeros(self.model.number_of_parameters)
+        spatial_derivatives = np.zeros(self.transform.number_of_parameters)
 
-        for fixed_point, transformed_point, model_transformed_point in zip(self.fixed_points,
-                                                                           transformed_points,
-                                                                           model_transformed_points):
+        for index, model_transformed_point, transformed_point, fixed_point in zip(self.model.landmarks_indexes,
+                                                                                  model_transformed_points,
+                                                                                  transformed_points,
+                                                                                  self.fixed_points):
+
+            difference = transformed_point - fixed_point
+
+            # compute derivatives with respect to model parameters
+            jacobian = self.transform.compute_jacobian_with_respect_to_parameters(model_transformed_point) @ self.model.jacobian(index)
+            model_derivatives = model_derivatives + jacobian.T @ difference
 
             # compute derivatives with respect to spatial transform parameters
             jacobian = self.transform.compute_jacobian_with_respect_to_parameters(model_transformed_point)
-            derivatives = derivatives + jacobian.T @ (transformed_point - fixed_point)
+            spatial_derivatives = spatial_derivatives + jacobian.T @ difference
 
-        return 2 * derivatives / self.model.number_of_landmarks
+        derivatives = 2*np.concatenate((model_derivatives, spatial_derivatives)) / self.model.number_of_landmarks
 
-        # jacobian_parameters = self.transform.compute_jacobian_with_respect_to_parameters
-        # jacobian_position = self.transform.jacobian_with_respect_to_position(model_transformed_points)
-        #
-        # jacobian = np.concatenate((jacobian_position @ self.model.landmarks_jacobian, jacobian_parameters), axis=1)
-        # return 2 * spatial_derivatives @ (transformed_points - self.fixed_points) / self.model.number_of_landmarks
+        return derivatives
 
     def initial_position(self):
         pass

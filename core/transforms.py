@@ -79,7 +79,7 @@ class AffineTransformBase:
     def compute_jacobian_with_respect_to_parameters(self, point):
         raise NotImplementedError
 
-    def jacobian_with_respect_to_position(self, point):
+    def compute_jacobian_with_respect_to_position(self, point):
         raise NotImplementedError
 
 
@@ -211,9 +211,8 @@ class SimilarityEuler3DTransform(Euler3DTransform):
 
         return self._jacobian
 
-    def jacobian_with_respect_to_position(self, point):
-        jacobian = np.zeros([3, 3])
-        return jacobian
+    def compute_jacobian_with_respect_to_position(self, point):
+        return self._matrix
 
 
 # ======================================================================================================================

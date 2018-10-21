@@ -89,14 +89,6 @@ class ModelBase:
         raise NotImplementedError
 
     @property
-    def jacobian(self):
-        raise NotImplementedError
-
-    @property
-    def landmarks_jacobian(self):
-        raise NotImplementedError
-
-    @property
     def representer(self):
         return self._representer
 
@@ -114,6 +106,9 @@ class ModelBase:
     @landmarks_indexes.setter
     def landmarks_indexes(self, indexes):
         self._landmarks_indexes = indexes
+
+    def jacobian(self, index):
+        raise NotImplementedError
 
     def initialize(self):
         raise NotImplementedError
@@ -158,13 +153,10 @@ class ExpressionModel(ModelBase):
     def number_of_used_components(self, components):
         self._number_of_used_components = components
 
-    @property
-    def jacobian(self):
-        return self._basis
-
-    @property
-    def landmarks_jacobian(self):
-        return self._landmarks_basis
+    def jacobian(self, index):
+        index1 = self.representer.dimension * index
+        index2 = index1 + self.representer.dimension
+        return self._basis[index1:index2, :self.number_of_parameters]
 
     def initialize(self):
         self._representer = Representer(filename=self.filename)
@@ -214,9 +206,6 @@ class ShapeModel(ModelBase):
         self._landmarks_mean = None
         self._landmarks_basis = None
 
-        self._jacobian = None
-        self._landmarks_jacobian = None
-
         super().__init__(filename=filename)
 
     def __repr__(self):
@@ -234,6 +223,13 @@ class ShapeModel(ModelBase):
     @property
     def expressions(self):
         return self._expressions
+
+    def jacobian(self, index):
+        index1 = self.representer.dimension * index
+        index2 = index1 + self.representer.dimension
+        jac1 = self._basis[index1:index2, :self.number_of_parameters]
+        jac2 = self.expressions.jacobian(index)
+        return np.concatenate((jac1, jac2), axis=1)
 
     def initialize(self):
         # read representer
@@ -316,14 +312,6 @@ class ShapeModel(ModelBase):
     @property
     def landmarks(self):
         return self._landmarks
-
-    @property
-    def jacobian(self):
-        return self._jacobian
-
-    @property
-    def landmarks_jacobian(self):
-        return self._landmarks_jacobian
 
     def transform(self, parameters):
         if len(parameters) < self.number_of_parameters:
