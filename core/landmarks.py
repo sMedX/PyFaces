@@ -13,8 +13,6 @@ class Pair:
 model2017_1_bfm_nomouth = list()
 model2017_1_bfm_nomouth.append(Pair([-0.0955040976, -73.366539, 102.963692], 'center.chin.tip'))
 model2017_1_bfm_nomouth.append(Pair([-0.377398103, 84.9062271, 104.559608], 'center.front.trichion'))
-model2017_1_bfm_nomouth.append(Pair([-0.0955040976, -73.366539, 102.963692], 'center.chin.tip'))
-model2017_1_bfm_nomouth.append(Pair([-0.377398103, 84.9062271, 104.559608], 'center.front.trichion'))
 model2017_1_bfm_nomouth.append(Pair([-0.00852414407, -32.5953026, 109.807968], 'center.lips.lower.inner'))
 model2017_1_bfm_nomouth.append(Pair([0.00494586537, -41.5086899, 111.808228], 'center.lips.lower.outer'))
 model2017_1_bfm_nomouth.append(Pair([0.00292040454, -32.4464722, 109.903816], 'center.lips.upper.inner'))
