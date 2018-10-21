@@ -59,6 +59,7 @@ class ModelBase:
         self._filename = filename
 
         self._representer = None
+
         self._landmarks = None
         self._landmarks_indexes = None
 
@@ -91,6 +92,14 @@ class ModelBase:
     @property
     def representer(self):
         return self._representer
+
+    @property
+    def landmarks(self):
+        return self._landmarks
+
+    @landmarks.setter
+    def landmarks(self, landmarks):
+        self._landmarks = landmarks
 
     @property
     def number_of_landmarks(self):
@@ -224,60 +233,6 @@ class ShapeModel(ModelBase):
     def expressions(self):
         return self._expressions
 
-    def jacobian(self, index):
-        index1 = self.representer.dimension * index
-        index2 = index1 + self.representer.dimension
-        jac1 = self._basis[index1:index2, :self.number_of_parameters]
-        jac2 = self.expressions.jacobian(index)
-        return np.concatenate((jac1, jac2), axis=1)
-
-    def initialize(self):
-        # read representer
-        self._representer = Representer(filename=self.filename)
-        self._representer.read()
-
-        # read shape model
-        with h5py.File(self.filename, 'r') as hf:
-            self._mean = hf['shape/model/mean'].value
-            self._basis = hf['shape/model/pcaBasis'].value
-            self._variance = hf['shape/model/pcaVariance'].value
-
-        x, y, z = self.xyz
-        self._center = np.array([np.mean(x), np.mean(y), np.mean(z)])
-
-        self._landmarks = landmarks.get_list(self.filename)
-        self._define_landmarks_indexes()
-        self._compute_landmarks_data()
-        self._number_of_used_components = self.number_of_components
-
-        # read expressions model
-        self._expressions = ExpressionModel(filename=self.filename)
-        self._expressions.landmarks_indexes = self._landmarks_indexes
-        self._expressions.initialize()
-
-    def _define_landmarks_indexes(self):
-
-        threshold = 10
-        shape = [self.representer.number_of_points, self.representer.dimension]
-
-        self._landmarks_indexes = []
-
-        for pair in self._landmarks:
-            dist = np.sum(pow(self._mean.reshape(shape) - pair.point, 2), axis=1)
-            index = np.argmin(dist)
-
-            if dist[index] < threshold:
-                self._landmarks_indexes.append(index)
-
-    def _compute_landmarks_data(self):
-        mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
-        mean = mean[self._landmarks_indexes]
-        self._landmarks_mean = np.reshape(mean, mean.shape[0]*mean.shape[1])
-
-        basis = np.reshape(self._basis, [self.representer.number_of_points, self.representer.dimension, self.number_of_components])
-        basis = basis[self._landmarks_indexes]
-        self._landmarks_basis = np.reshape(basis, [basis.shape[0]*basis.shape[1], basis.shape[2]])
-
     @property
     def xyz(self):
         return self._mean[0::3], self._mean[1::3], self._mean[2::3]
@@ -309,9 +264,58 @@ class ShapeModel(ModelBase):
     def center(self):
         return self._center
 
-    @property
-    def landmarks(self):
-        return self._landmarks
+    def jacobian(self, index):
+        index1 = self.representer.dimension * index
+        index2 = index1 + self.representer.dimension
+        jac1 = self._basis[index1:index2, :self.number_of_parameters]
+        jac2 = self.expressions.jacobian(index)
+        return np.concatenate((jac1, jac2), axis=1)
+
+    def initialize(self):
+        # read representer
+        self._representer = Representer(filename=self.filename)
+        self._representer.read()
+
+        # read shape model
+        with h5py.File(self.filename, 'r') as hf:
+            self._mean = hf['shape/model/mean'].value
+            self._basis = hf['shape/model/pcaBasis'].value
+            self._variance = hf['shape/model/pcaVariance'].value
+
+        x, y, z = self.xyz
+        self._center = np.array([np.mean(x), np.mean(y), np.mean(z)])
+
+        self._define_landmarks_indexes()
+        self._compute_landmarks_data()
+        self._number_of_used_components = self.number_of_components
+
+        # read expressions model
+        self._expressions = ExpressionModel(filename=self.filename)
+        self._expressions.landmarks_indexes = self._landmarks_indexes
+        self._expressions.initialize()
+
+    def _define_landmarks_indexes(self):
+
+        threshold = 10
+        shape = [self.representer.number_of_points, self.representer.dimension]
+
+        self._landmarks_indexes = []
+
+        for pair in self._landmarks:
+            dist = np.sum(pow(self._mean.reshape(shape) - pair.point, 2), axis=1)
+            index = np.argmin(dist)
+
+            if dist[index] < threshold:
+                self._landmarks_indexes.append(index)
+
+    def _compute_landmarks_data(self):
+        mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
+        mean = mean[self._landmarks_indexes]
+        self._landmarks_mean = np.reshape(mean, mean.shape[0]*mean.shape[1])
+
+        basis = np.reshape(self._basis, [self.representer.number_of_points, self.representer.dimension, self.number_of_components])
+        basis = basis[self._landmarks_indexes]
+        self._landmarks_basis = np.reshape(basis, [basis.shape[0]*basis.shape[1], basis.shape[2]])
 
     def transform(self, parameters):
         if len(parameters) < self.number_of_parameters:

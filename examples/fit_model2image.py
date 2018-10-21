@@ -17,13 +17,14 @@ if __name__ == '__main__':
     # read face model
     filename = os.path.join(os.path.pardir, 'data', filename)
     model = FaceModel(filename)
+    model.shape.landmarks = landmarks.model2017_1_bfm_nomouth
     model.initialize()
-    model.shape.number_of_used_components = 0
+    model.shape.number_of_used_components = 10
     # model.plot(step=2)
     print(model)
 
     # define fixed points
-    fixed_points = landmarks.to_array(landmarks.get_list(filename))[:, 0:2]
+    fixed_points = landmarks.to_array(landmarks.model2017_1_bfm_nomouth)[:, 0:2]
 
     # initialize transform
     transform = transforms.ProjectionSimilarityEuler3DTransform()
