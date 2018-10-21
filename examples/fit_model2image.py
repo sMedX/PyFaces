@@ -17,10 +17,10 @@ if __name__ == '__main__':
     # read face model
     filename = os.path.join(os.path.pardir, 'data', filename)
     model = FaceModel(filename)
-    model.shape.landmarks = landmarks.model2017_1_bfm_nomouth
+    model.shape.landmarks = landmarks.model2017_1_bfm_nomouth_dlib
     model.initialize()
     model.shape.number_of_used_components = 10
-    # model.plot(step=2)
+    model.plot(step=2)
     print(model)
 
     # define fixed points
