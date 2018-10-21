@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # ap.add_argument("-i", "--image", required=True,	help="path to input image")
     # args = vars(ap.parse_args())
 
-    image_file = 'model2017-1_bfm_nomouth_image.png'
+    image_file = 'basel_face_example.png'
     image_file = os.path.join(os.path.pardir, 'data', image_file)
 
     # shape model file
