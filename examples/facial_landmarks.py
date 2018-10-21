@@ -53,8 +53,6 @@ if __name__ == '__main__':
         # concatenate coordinates
         points = np.concatenate((points, shape), axis=0)
 
-    print(points)
-
     # show the output image with the face detections + facial landmarks
     fig, ax = plt.subplots()
     im = ax.imshow(cv2.cvtColor(image[::-1, :], cv2.COLOR_BGR2RGB), origin='lower')
@@ -64,3 +62,6 @@ if __name__ == '__main__':
         plt.text(point[0]+1, point[1]+1, '{}'.format(count), color='blue', fontsize=7)
 
     plt.show()
+
+    print(points)
+    print('number of points', points.shape[0])
