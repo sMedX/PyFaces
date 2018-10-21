@@ -80,7 +80,7 @@ class AffineTransformBase:
         raise NotImplementedError
 
     def compute_jacobian_with_respect_to_position(self, point):
-        raise NotImplementedError
+        return self._matrix
 
 
 # ======================================================================================================================
@@ -211,9 +211,6 @@ class SimilarityEuler3DTransform(Euler3DTransform):
 
         return self._jacobian
 
-    def compute_jacobian_with_respect_to_position(self, point):
-        return self._matrix
-
 
 # ======================================================================================================================
 # similarity Euler 3D transform
@@ -232,6 +229,8 @@ class ProjectionSimilarityEuler3DTransform(SimilarityEuler3DTransform):
         self._projector = np.array([[1, 0, 0], [0, 1, 0]])
         self._matrix = np.array([[1, 0, 0], [0, 1, 0]])
         self._offset = np.zeros(2)
+
+        self._jacobian = np.zeros([2, self.number_of_parameters])
 
     def __repr__(self):
         """Representation of transform"""
@@ -256,22 +255,35 @@ class ProjectionSimilarityEuler3DTransform(SimilarityEuler3DTransform):
         return self._projector
 
     def compute_jacobian_with_respect_to_parameters(self, point):
-        jacobian = np.zeros([2, self.number_of_parameters])
+        p = point - self.center
 
         # rotation
+        angle_x, angle_y, angle_z = self.angles
 
-        # scaling
-        p = self.matrix @ (point - self.center)
-        jacobian[:, 3] = p
+        cx = np.cos(angle_x)
+        sx = np.sin(angle_x)
+        cy = np.cos(angle_y)
+        sy = np.sin(angle_y)
+        cz = np.cos(angle_z)
+        sz = np.sin(angle_z)
+
+        self._jacobian[0][0] = (-sz * cx * sy) * p[0] + (sz * sx) * p[1] + (sz * cx * cy) * p[2]
+        self._jacobian[1][0] = (cz * cx * sy) * p[0] + (-cz * sx) * p[1] + (-cz * cx * cy) * p[2]
+
+        self._jacobian[0][1] = (-cz * sy - sz * sx * cy) * p[0] + (cz * cy - sz * sx * sy) * p[2]
+        self._jacobian[1][1] = (-sz * sy + cz * sx * cy) * p[0] + (sz * cy + cz * sx * sy) * p[2]
+
+        self._jacobian[0][2] = (-sz * cy - cz * sx * sy) * p[0] + (-cz * cx) * p[1] + (-sz * sy + cz * sx * cy) * p[2]
+        self._jacobian[1][2] = (cz * cy - sz * sx * sy) * p[0] + (-sz * cx) * p[1] + (cz * sy + sz * sx * cy) * p[2]
 
         # translation
-        jacobian[0, 4] = 1
-        jacobian[1, 5] = 1
-        return jacobian
+        self._jacobian[0, 3] = 1
+        self._jacobian[1, 4] = 1
 
-    def jacobian_with_respect_to_position(self, point):
-        jacobian = np.zeros([2, 3])
-        return jacobian
+        # scaling
+        self._jacobian[:, 5] = self.matrix @ p
+
+        return self._jacobian
 
     def _compute_matrix(self):
         super()._compute_matrix()
