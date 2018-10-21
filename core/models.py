@@ -126,14 +126,13 @@ class ModelBase:
 # expression model
 class ExpressionModel(ModelBase):
     def __init__(self, filename=None):
+        super().__init__(filename=filename)
         self._mean = None
         self._basis = None
         self._variance = None
 
         self._landmarks_mean = None
         self._landmarks_basis = None
-
-        super().__init__(filename=filename)
 
     def __repr__(self):
         """Representation of FaceModel"""
@@ -205,6 +204,7 @@ class ExpressionModel(ModelBase):
 # shape model
 class ShapeModel(ModelBase):
     def __init__(self, filename=None):
+        super().__init__(filename=filename)
         self._expressions = None
 
         self._center = None
@@ -214,8 +214,6 @@ class ShapeModel(ModelBase):
 
         self._landmarks_mean = None
         self._landmarks_basis = None
-
-        super().__init__(filename=filename)
 
     def __repr__(self):
         """Representation of shape model"""
@@ -340,10 +338,10 @@ class ShapeModel(ModelBase):
 # color model
 class ColorModel(ModelBase):
     def __init__(self, filename=None):
+        super().__init__(filename=filename)
         self._mean = None
         self._basis = None
         self._variance = None
-        super().__init__(filename=filename)
 
     def __repr__(self):
         info = (
