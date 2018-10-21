@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # ap.add_argument("-i", "--image", required=True,	help="path to input image")
     # args = vars(ap.parse_args())
 
-    image_file = 'example_01.jpg'
+    image_file = 'model2017-1_bfm_nomouth_image.png'
     image_file = os.path.join(os.path.pardir, 'data', image_file)
 
     # shape model file
@@ -41,21 +41,26 @@ if __name__ == '__main__':
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     rects = detector(gray, 1)
 
-    xx = []
-    yy = []
+    points = np.zeros([0, 2])
 
     # loop over the face detections
     for (i, rect) in enumerate(rects):
 
         # determine the facial landmarks for the face region, then convert the facial landmarks to a NumPy array
         shape = face_utils.shape_to_np(predictor(gray, rect))
+        shape[:, 1] = image.shape[0] - shape[:,1]
 
         # concatenate coordinates
-        xx = np.concatenate((xx, shape[:, 0]))
-        yy = np.concatenate((yy, shape[:, 1]))
+        points = np.concatenate((points, shape), axis=0)
+
+    print(points)
 
     # show the output image with the face detections + facial landmarks
     fig, ax = plt.subplots()
-    im = ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    ax.scatter(xx, yy, c='r', marker='.', s=5)
+    im = ax.imshow(cv2.cvtColor(image[::-1,:], cv2.COLOR_BGR2RGB), origin='lower')
+    ax.scatter(points[:, 0], points[:, 1], c='r', marker='.', s=5)
+
+    for count, point in enumerate(points):
+        plt.text(point[0]+1, point[1]+1, '{}'.format(count), color='blue', fontsize=7)
+
     plt.show()
