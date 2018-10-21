@@ -402,48 +402,39 @@ class FaceModel:
         from mpl_toolkits.mplot3d import Axes3D
 
         x, y, z = self.shape.xyz
+        shape = np.reshape(self.shape._mean, [self.shape.representer.number_of_points, self.shape.representer.dimension])
+        points = landmarks.to_array(self.shape.landmarks)
 
         fig = plt.figure()
         ax = fig.gca(projection='3d')
         ax.scatter(x[::step], y[::step], z[::step], c=self.color.colors[::step, :], marker='.')
+        ax.scatter(points[:, 0], points[:, 1], points[:, 2], c='r', marker='o', s=50)
         ax.set_xlabel('x label')
         ax.set_ylabel('y label')
         ax.set_zlabel('z label')
         ax.axis('equal')
 
-        points = landmarks.to_array(self.shape.landmarks)
-        ax.scatter(points[:, 0], points[:, 1], points[:, 2], c='r', marker='o', s=50)
+        labels = ('x label', 'y label', 'z label')
 
-        plt.show()
+        def show_landmarks(ax, i, k):
+            ax.scatter(shape[:, i], shape[:, k], color=self.color.colors, marker='.')
+            ax.scatter(points[:, i], points[:, k], c='r', marker='.')
+            ax.set_xlabel(labels[i])
+            ax.set_ylabel(labels[k])
+            ax.axis('equal')
+            ax.grid(True)
+
+            for landmark in self.shape.landmarks:
+                if landmark.weight == 1:
+                    color = 'green'
+                else:
+                    color = 'blue'
+                ax.text(landmark.point[i] + 1, landmark.point[k] + 1, '{}'.format(landmark.index), color=color)
 
         fig, ax = plt.subplots(1, 3)
-        ax[0].scatter(x, y, color=self.color.colors, marker='.')
-        ax[0].set_xlabel('x label')
-        ax[0].set_ylabel('y label')
-        ax[0].scatter(points[:, 0], points[:, 1], c='r', marker='.')
-        ax[0].axis('equal')
-        ax[0].grid(True)
-        for count, point in enumerate(points):
-            ax[0].text(point[0] + 1, point[1] + 1, '{}'.format(count), color='blue')
-
-        ax[1].scatter(y, z, color=self.color.colors, marker='.')
-        ax[1].set_xlabel('y label')
-        ax[1].set_ylabel('z label')
-        ax[1].scatter(points[:, 1], points[:, 2], c='r', marker='.')
-        ax[1].axis('equal')
-        ax[1].grid(True)
-        for count, point in enumerate(points):
-            ax[1].text(point[1] + 1, point[2] + 1, '{}'.format(count), color='blue')
-
-        ax[2].scatter(x, z, color=self.color.colors, marker='.')
-        ax[2].set_xlabel('x label')
-        ax[2].set_ylabel('z label')
-        ax[2].scatter(points[:, 0], points[:, 2], c='r', marker='.')
-        ax[2].axis('equal')
-        ax[2].grid(True)
-        for count, point in enumerate(points):
-            ax[2].text(point[0] + 1, point[2] + 1, '{}'.format(count), color='blue')
-
+        show_landmarks(ax[0], 0, 1)
+        show_landmarks(ax[1], 1, 2)
+        show_landmarks(ax[2], 0, 2)
         plt.show()
 
         return
