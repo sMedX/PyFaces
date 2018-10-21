@@ -112,7 +112,7 @@ class LandmarksShapeModelMetric(ModelMetricBase):
             difference = transformed_point - fixed_point
 
             # compute derivatives with respect to model parameters
-            jacobian = self.transform.compute_jacobian_with_respect_to_parameters(model_transformed_point) @ self.model.jacobian(index)
+            jacobian = self.transform.compute_jacobian_with_respect_to_position(model_transformed_point) @ self.model.jacobian(index)
             model_derivatives = model_derivatives + jacobian.T @ difference
 
             # compute derivatives with respect to spatial transform parameters
