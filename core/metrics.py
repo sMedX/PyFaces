@@ -10,7 +10,13 @@ class ModelMetricBase:
         self._transform = None
         self._model = None
 
-    # fixed points
+    def __repr__(self):
+        """Representation of metric"""
+        info = (
+            'Metric {}'.format(self.__class__.__name__)
+        )
+        return info
+
     @property
     def fixed_points(self):
         return self._fixed_points
@@ -58,13 +64,6 @@ class ModelMetricBase:
 class LandmarksShapeModelMetric(ModelMetricBase):
     def __init__(self):
         super().__init__()
-
-    def __repr__(self):
-        """Representation of metric"""
-        info = (
-            'Metric {}'.format(self.__class__.__name__)
-        )
-        return info
 
     def value(self, parameters):
         """

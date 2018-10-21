@@ -23,10 +23,10 @@ if __name__ == '__main__':
     print(model)
 
     # define fixed points
-    fixed_points = landmarks.to_array(landmarks.get_list(filename))#[:, 0:2]
+    fixed_points = landmarks.to_array(landmarks.get_list(filename))[:, 0:2]
 
     # initialize transform
-    transform = transforms.SimilarityEuler3DTransform() # ProjectionSimilarityEuler3DTransform()
+    transform = transforms.ProjectionSimilarityEuler3DTransform()
     transform.center = model.shape.center
     print(transform)
 
@@ -40,13 +40,13 @@ if __name__ == '__main__':
     initial_parameters = np.zeros(metric.number_of_parameters)
     initial_parameters[-1] = 1
 
-    print(metrics)
-    print('  metric value', metric.value(parameters=initial_parameters))
-    print('jacobian value', metric.jacobian(parameters=initial_parameters))
+    print(metric)
+    print('  initial metric value', metric.value(parameters=initial_parameters))
+    print('initial jacobian value', metric.jacobian(parameters=initial_parameters))
 
     res = minimize(metric.value,
                    initial_parameters,
                    method='BFGS',
                    jac=metric.jacobian,
-                   options={'maxiter': 1000, 'gtol': 1e-8, 'disp': True})
+                   options={'maxiter': 1000, 'gtol': 1e-5, 'disp': True})
     print(res)
