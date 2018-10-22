@@ -20,7 +20,7 @@ if __name__ == '__main__':
     model.shape.landmarks = landmarks.model2017_1_bfm_nomouth_dlib
     model.initialize()
     model.shape.number_of_used_components = 10
-    model.plot(step=2)
+    # model.plot(step=3)
     print(model)
 
     # define fixed points

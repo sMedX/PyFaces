@@ -397,7 +397,7 @@ class FaceModel:
         self._shape.initialize()
         self._color.initialize()
 
-    def plot(self, step=5):
+    def plot(self, step=3):
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
 
