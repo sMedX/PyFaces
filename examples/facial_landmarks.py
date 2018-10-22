@@ -25,7 +25,7 @@ if __name__ == '__main__':
     image_file = 'basel_face_example.png'
     image_file = os.path.join(os.path.pardir, 'data', image_file)
 
-    # shape model file
+    # shape predictor file
     shape_file = 'shape_predictor_68_face_landmarks.dat'
     shape_file = os.path.join(os.path.pardir, 'data', shape_file)
 
