@@ -8,7 +8,7 @@ import numpy as np
 from scipy.optimize import minimize
 import core.transforms as transforms
 import core.metrics as metrics
-from core.models import FaceModel
+from core.models import FaceModel, ShapeModelTransform
 import core.landmarks as landmarks
 import core.landmark_detectors as detectors
 from thirdparty.facial_landmarks import imutils
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     model = FaceModel(filename)
     model.shape.landmarks = landmarks.model2017_1_bfm_nomouth_dlib
     model.initialize()
-    model.shape.number_of_used_components = 50
+    model.shape.number_of_used_components = 10
     # model.plot(step=3)
     print(model)
 
@@ -67,13 +67,10 @@ if __name__ == '__main__':
     print(res)
 
     parameters = res.x
-    points = metric.model.transform_landmarks(res.x)
-    # transform landmarks
-    points = metric.model.transform_landmarks(parameters)
 
-    # apply spatial transform to landmarks
-    metric.transform.parameters = parameters[metric.model.number_of_parameters:]
-    points = metric.transform.transform_points(points, [metric.model.number_of_landmarks, metric.model.representer.dimension])
+    # apply shape transform to shape model
+    transform = ShapeModelTransform(model.shape, transforms.ProjectionSimilarityEuler3DTransform())
+    points = transform.transform_landmarks(parameters)
 
     # show the output image with the face detections + facial landmarks
     fig, ax = plt.subplots()
@@ -82,3 +79,4 @@ if __name__ == '__main__':
     ax.scatter(points[:, 0], points[:, 1], c='green', marker='.', s=5, label='face model landmarks')
     ax.legend()
     plt.show()
+

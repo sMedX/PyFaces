@@ -193,7 +193,7 @@ class ExpressionModel(ModelBase):
 
         return self._mean + self._basis @ parameters[:self.number_of_components]
 
-    def transform_landmarks(self, parameters):
+    def transform_landmarks(self, parameters, index=None):
         if len(parameters) < self.number_of_parameters:
             raise ValueError('wrong length of parameters')
 
@@ -322,7 +322,7 @@ class ShapeModel(ModelBase):
         points = self._mean + self._basis @ parameters[:self.number_of_components] + self.expressions.transform(parameters[self.number_of_components:])
         return points
 
-    def transform_landmarks(self, parameters):
+    def transform_landmarks(self, parameters, as2darray=True):
         if len(parameters) < self.number_of_parameters:
             raise ValueError('wrong length of parameters')
 
@@ -332,7 +332,10 @@ class ShapeModel(ModelBase):
                  self._landmarks_basis[:, :components] @ parameters[:components] + \
                  self.expressions.transform_landmarks(parameters[components:])
 
-        return points
+        if as2darray:
+            return points.reshape([self.number_of_landmarks, self.representer.dimension])
+        else:
+            return points
 
 
 # color model
@@ -438,3 +441,48 @@ class FaceModel:
         plt.show()
 
         return
+
+
+# data to represent surface
+class ShapeModelTransform:
+    def __init__(self, model, transform):
+        self._model = model
+
+        transform.center = model.center
+        self._transform = transform
+
+    @property
+    def number_of_parameters(self):
+        return self._model.number_of_parameters + self._transform.number_of_parameters
+
+    def transform_landmarks(self, parameters):
+
+        # transform landmarks
+        points = self._model.transform_landmarks(parameters)
+
+        # apply spatial transform to landmarks
+        self._transform.parameters = parameters[self._model.number_of_parameters:]
+        points = self._transform.transform_points(points)
+
+        return points
+
+    def compute_jacobian_with_respect_to_parameters(self, index, parameters):
+
+        # apply model transform to point with index
+        model_transformed_point = self._model.transform_landmarks(parameters, index)
+
+        # apply spatial transform to points
+        # self._transform.parameters = parameters[self._model.number_of_parameters:]
+        # transformed_point = self._transform.transform_points(model_transformed_point)
+
+        #model_derivatives = np.zeros(self._model.number_of_parameters)
+        #spatial_derivatives = np.zeros(self._transform.number_of_parameters)
+
+        # compute derivatives with respect to model parameters
+        jacobian1 = self._transform.compute_jacobian_with_respect_to_position(model_transformed_point) @ self._model.jacobian(index)
+
+        # compute derivatives with respect to spatial transform parameters
+        jacobian2 = self._transform.compute_jacobian_with_respect_to_parameters(model_transformed_point)
+
+        return np.concatenate((jacobian1, jacobian2), axis=1)
+
