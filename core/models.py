@@ -13,6 +13,7 @@ def normalize_basis(basis, variance):
 
     return basis
 
+
 # data to represent surface
 class Representer:
     def __init__(self, filename=None):
