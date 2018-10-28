@@ -5,6 +5,14 @@ import numpy as np
 import core.landmarks as landmarks
 
 
+def normalize_basis(basis, variance):
+
+    for i in range(basis.shape[1]):
+        factor = np.sqrt(variance[i])/np.linalg.norm(basis[:, i])
+        basis[:, i] = factor * basis[:, i]
+
+    return basis
+
 # data to represent surface
 class Representer:
     def __init__(self, filename=None):
@@ -175,6 +183,8 @@ class ExpressionModel(ModelBase):
             self._basis = hf['expression/model/pcaBasis'].value
             self._variance = hf['expression/model/pcaVariance'].value
 
+        self._basis = normalize_basis(self._basis, self._variance)
+
         self._compute_landmarks_data()
         self._number_of_used_components = self.number_of_components
 
@@ -280,6 +290,8 @@ class ShapeModel(ModelBase):
             self._basis = hf['shape/model/pcaBasis'].value
             self._variance = hf['shape/model/pcaVariance'].value
 
+        self._basis = normalize_basis(self._basis, self._variance)
+
         x, y, z = self.xyz
         self._center = np.array([np.mean(x), np.mean(y), np.mean(z)])
 
@@ -369,6 +381,8 @@ class ColorModel(ModelBase):
             self._mean = np.array(hf['color/model/mean'])
             self._basis = np.array(hf['color/model/pcaBasis'])
             self._variance = np.array(hf['color/model/pcaVariance'])
+
+        self._basis = normalize_basis(self._basis, self._variance)
 
     def transform(self, parameters):
         raise NotImplementedError
