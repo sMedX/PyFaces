@@ -58,6 +58,7 @@ if __name__ == '__main__':
     print(metric)
     print('  initial metric value', metric.value(parameters=initial_parameters))
     print('initial jacobian value', metric.jacobian(parameters=initial_parameters))
+    print('    initial parameters', initial_parameters)
     print()
 
     res = minimize(metric.value,

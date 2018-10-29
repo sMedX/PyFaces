@@ -7,9 +7,9 @@ import core.landmarks as landmarks
 
 def normalize_basis(basis, variance):
 
-    for i in range(basis.shape[1]):
-        factor = np.sqrt(variance[i])/np.linalg.norm(basis[:, i])
-        basis[:, i] = factor * basis[:, i]
+    # for i in range(basis.shape[1]):
+    #     factor = np.sqrt(variance[i])/np.linalg.norm(basis[:, i])
+    #     basis[:, i] *= factor
 
     return basis
 
