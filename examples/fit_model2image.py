@@ -36,7 +36,7 @@ if __name__ == '__main__':
     model = FaceModel(filename)
     model.shape.landmarks = landmarks.model2017_1_bfm_nomouth_dlib
     model.initialize()
-    model.shape.number_of_used_components = 10
+    model.shape.number_of_used_components = 0
     # model.plot(step=3)
     print(model)
 
@@ -58,13 +58,13 @@ if __name__ == '__main__':
     print(metric)
     print('  initial metric value', metric.value(parameters=initial_parameters))
     print('initial jacobian value', metric.jacobian(parameters=initial_parameters))
+    print()
 
     res = minimize(metric.value,
                    initial_parameters,
                    method='BFGS',
                    jac=metric.jacobian,
                    options={'maxiter': 1000, 'gtol': 1e-5, 'disp': True})
-    print(res)
 
     parameters = res.x
 
