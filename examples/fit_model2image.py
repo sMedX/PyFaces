@@ -66,6 +66,8 @@ if __name__ == '__main__':
                    jac=metric.jacobian,
                    options={'maxiter': 1000, 'gtol': 1e-5, 'disp': True})
 
+    print('results', res.x)
+
     parameters = res.x
 
     # apply shape transform to shape model
