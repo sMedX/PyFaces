@@ -3,6 +3,7 @@ __author__ = 'Ruslan N. Kosarev'
 import h5py
 import numpy as np
 import core.landmarks as landmarks
+import tensorflow as tf
 
 
 def normalize_basis(basis, variance):
@@ -59,7 +60,9 @@ class Representer:
     def read(self):
         with h5py.File(self.filename, 'r') as hf:
             self._points = hf['shape/representer/points'].value
+
             self._cells = hf['shape/representer/cells'].value
+            self._cells = tf.constant(self._cells.T, dtype=tf.int32)
 
 
 class ModelBase:
@@ -190,6 +193,9 @@ class ExpressionModel(ModelBase):
         self._number_of_used_components = self.number_of_components
 
     def _compute_landmarks_data(self):
+        if self._landmarks is None:
+            return
+
         mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
         mean = mean[self._landmarks_indexes]
         self._landmarks_mean = np.reshape(mean, mean.shape[0]*mean.shape[1])
@@ -307,6 +313,9 @@ class ShapeModel(ModelBase):
 
     def _define_landmarks_indexes(self):
 
+        if self._landmarks is None:
+            return
+
         threshold = 10
         shape = [self.representer.number_of_points, self.representer.dimension]
 
@@ -320,6 +329,9 @@ class ShapeModel(ModelBase):
                 self._landmarks_indexes.append(index)
 
     def _compute_landmarks_data(self):
+        if self._landmarks is None:
+            return
+
         mean = np.reshape(self._mean, [self.representer.number_of_points, self.representer.dimension])
         mean = mean[self._landmarks_indexes]
         self._landmarks_mean = np.reshape(mean, mean.shape[0]*mean.shape[1])
@@ -457,6 +469,20 @@ class FaceModel:
 
         return
 
+    @property
+    def default_parameters(self):
+
+        params0 = np.zeros((1, self.shape.number_of_components)) * np.sqrt(self.shape._variance)
+        params0 = tf.Variable(params0, dtype=tf.float32, name='shape')
+
+        params1 = np.zeros((1, self.shape.expressions.number_of_components)) * np.sqrt(self.shape.expressions._variance)
+        params1 = tf.Variable(params1, dtype=tf.float32, name='expressions')
+
+        params2 = np.zeros((1, self.color.number_of_components)) * np.sqrt(self.color._variance)
+        params2 = tf.Variable(params2, dtype=tf.float32, name='color')
+
+        return params0, params1, params2
+
 
 # data to represent surface
 class ShapeModelTransform:
@@ -501,3 +527,30 @@ class ShapeModelTransform:
 
         return np.concatenate((jacobian1, jacobian2), axis=1)
 
+
+# data to represent surface
+class ModelTransform:
+    def __init__(self, model=None, transform=None):
+        self._model = model
+        self._transform = transform
+
+    def transform(self, params):
+        points = tf.constant(self._model.shape._mean, dtype=tf.float32) + \
+                 params[0] @ tf.constant(self._model.shape._basis.T, dtype=tf.float32) + \
+                 params[1] @ tf.constant(self._model.shape.expressions._basis.T, dtype=tf.float32)
+
+        colors = tf.constant(self._model.color._mean, dtype=tf.float32) + \
+                 params[2] @ tf.constant(self._model.color._basis.T, dtype=tf.float32)
+
+        # colors = colors - tf.reduce_min(colors)  # add loss here
+        # colors = colors / tf.reduce_max(colors)  # add loss here
+
+        # norm, and reshape
+        points = points / 200
+
+        colors = tf.reshape(colors, (1, self._model.shape.representer.number_of_points, 3))
+        points = tf.reshape(points, (1, self._model.shape.representer.number_of_points, 3))
+
+        normals = points
+
+        return points, colors, normals

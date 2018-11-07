@@ -1,6 +1,48 @@
 __author__ = 'Ruslan N. Kosarev'
 
 import numpy as np
+from math import sin, cos, pi
+import tensorflow as tf
+
+
+# ======================================================================================================================
+def spheric_to_cartesian(r_phi_theta):
+    """Convert spheric coordinates into cartesion
+    0 < phi < 2pi,
+    -pi/2 < theta < pi/2,
+    r > 0.
+    For example:
+    f(r, 0, 0) = (0,0,r),
+    f(r, 0, -pi/2) = (r,0,0).
+    """
+    r, phi, theta = r_phi_theta
+
+    x = r * sin(theta) * cos(phi)
+    y = r * sin(theta) * sin(phi)
+    z = r * cos(theta)
+
+    return x, y, z
+
+
+def tf_rotation_matrix(thetax, thetay, thetaz):
+    rotation_matrix_x = tf.stack([tf.constant(1.0),tf.constant(0.0),tf.constant(0.0),
+                               tf.constant(0.0),tf.cos(thetax), -tf.sin(thetax),
+                               tf.constant(0.0),tf.sin(thetax), tf.cos(thetax)])
+    rotation_matrix_y = tf.stack([
+                          tf.cos(thetay),tf.constant(0.0), -tf.sin(thetay),
+                          tf.constant(0.0),tf.constant(1.0),tf.constant(0.0),
+                          tf.sin(thetay),0, tf.cos(thetay)])
+
+
+    rotation_matrix_z = tf.stack([
+                              tf.cos(thetaz), -tf.sin(thetaz),tf.constant(0.0),
+                              tf.sin(thetaz), tf.cos(thetaz),tf.constant(0.0),
+                              tf.constant(0.0),tf.constant(0.0),tf.constant(1.0)])
+    rotation_matrix_x = tf.reshape(rotation_matrix_x, (3,3))
+    rotation_matrix_y = tf.reshape(rotation_matrix_y, (3,3))
+    rotation_matrix_z = tf.reshape(rotation_matrix_z, (3,3))
+
+    return rotation_matrix_x @ rotation_matrix_y @ rotation_matrix_z
 
 
 # ======================================================================================================================
