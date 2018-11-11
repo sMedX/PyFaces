@@ -7,11 +7,9 @@ import tensorflow as tf
 
 
 def normalize_basis(basis, variance):
-
     # for i in range(basis.shape[1]):
     #     factor = np.sqrt(variance[i])/np.linalg.norm(basis[:, i])
     #     basis[:, i] *= factor
-
     return basis
 
 
@@ -57,25 +55,64 @@ class Representer:
     def cells(self):
         return self._cells
 
-    def read(self):
+    def initialize(self):
         with h5py.File(self.filename, 'r') as hf:
             self._points = hf['shape/representer/points'].value
-
             self._cells = hf['shape/representer/cells'].value
-            self._cells = tf.constant(self._cells.T, dtype=tf.int32)
 
 
 class ModelBase:
     """Base class for model."""
     def __init__(self, filename=None):
-        self._filename = filename
+        self._np_mean = None
+        self._np_basis = None
+        self._np_variance = None
+        self._np_std = None
 
+        self._mean = None
+        self._basis = None
+        self._variance = None
+        self._std = None
+
+        self._filename = filename
         self._representer = None
 
         self._landmarks = None
         self._landmarks_indexes = None
 
         self._number_of_used_components = None
+
+    @property
+    def mean(self):
+        return self._mean
+
+    @property
+    def basis(self):
+        return self._basis
+
+    @property
+    def variance(self):
+        return self._variance
+
+    @property
+    def std(self):
+        return self._std
+
+    @property
+    def np_mean(self):
+        return self._np_mean
+
+    @property
+    def np_basis(self):
+        return self._np_basis
+
+    @property
+    def np_variance(self):
+        return self._np_variance
+
+    @property
+    def np_std(self):
+        return self._np_std
 
     @property
     def filename(self):
@@ -86,20 +123,11 @@ class ModelBase:
         self._filename = filename
 
     @property
-    def number_of_parameters(self):
-        raise NotImplementedError
-
-    @property
-    def number_of_used_components(self):
-        return self._number_of_used_components
-
-    @number_of_used_components.setter
-    def number_of_used_components(self, components):
-        raise NotImplementedError
-
-    @property
     def number_of_components(self):
-        raise NotImplementedError
+        if self._basis is None:
+            return None
+        else:
+            return self._basis.shape[0]
 
     @property
     def representer(self):
@@ -128,21 +156,11 @@ class ModelBase:
     def landmarks_indexes(self, indexes):
         self._landmarks_indexes = indexes
 
-    def jacobian(self, index):
-        raise NotImplementedError
-
-    def initialize(self):
-        raise NotImplementedError
-
 
 # expression model
 class ExpressionModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename)
-        self._mean = None
-        self._basis = None
-        self._variance = None
-
         self._landmarks_mean = None
         self._landmarks_basis = None
 
@@ -153,13 +171,6 @@ class ExpressionModel(ModelBase):
              'components {}\n'.format(self._basis.shape)
         )
         return info
-
-    @property
-    def number_of_components(self):
-        if self._basis is None:
-            return None
-        else:
-            return self._basis.shape[1]
 
     @property
     def number_of_parameters(self):
@@ -180,17 +191,20 @@ class ExpressionModel(ModelBase):
 
     def initialize(self):
         self._representer = Representer(filename=self.filename)
-        self._representer.read()
+        self._representer.initialize()
 
         with h5py.File(self.filename, 'r') as hf:
             self._mean = hf['expression/model/mean'].value
             self._basis = hf['expression/model/pcaBasis'].value
             self._variance = hf['expression/model/pcaVariance'].value
 
-        self._basis = normalize_basis(self._basis, self._variance)
+        #self._basis = normalize_basis(self._basis, self._variance)
+        #self._compute_landmarks_data()
+        #self._number_of_used_components = self.number_of_components
 
-        self._compute_landmarks_data()
-        self._number_of_used_components = self.number_of_components
+        self._mean = tf.constant(self._mean, dtype=tf.float32)
+        self._basis = tf.constant(self._basis.T, dtype=tf.float32)
+        self._std = tf.constant(self._variance, dtype=tf.float32)
 
     def _compute_landmarks_data(self):
         if self._landmarks is None:
@@ -223,12 +237,7 @@ class ShapeModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename)
         self._expressions = None
-
         self._center = None
-        self._mean = None
-        self._basis = None
-        self._variance = None
-
         self._landmarks_mean = None
         self._landmarks_basis = None
 
@@ -238,7 +247,6 @@ class ShapeModel(ModelBase):
              '{}\n'.format(self.__class__.__name__) +
              'components {}\n'.format(self._basis.shape) +
              'center {}\n'.format(self.center.tolist()) +
-             'landmarks {}\n'.format(len(self.landmarks)) +
              '{}'.format(self._representer.__repr__()) +
              '{}'.format(self._expressions.__repr__())
         )
@@ -247,17 +255,6 @@ class ShapeModel(ModelBase):
     @property
     def expressions(self):
         return self._expressions
-
-    @property
-    def xyz(self):
-        return self._mean[0::3], self._mean[1::3], self._mean[2::3]
-
-    @property
-    def number_of_components(self):
-        if self._basis is None:
-            return None
-        else:
-            return self._basis.shape[-1]
 
     @property
     def number_of_parameters(self):
@@ -289,22 +286,26 @@ class ShapeModel(ModelBase):
     def initialize(self):
         # read representer
         self._representer = Representer(filename=self.filename)
-        self._representer.read()
+        self._representer.initialize()
 
         # read shape model
         with h5py.File(self.filename, 'r') as hf:
-            self._mean = hf['shape/model/mean'].value
-            self._basis = hf['shape/model/pcaBasis'].value
-            self._variance = hf['shape/model/pcaVariance'].value
+            self._np_mean = hf['shape/model/mean'].value
+            self._np_basis = hf['shape/model/pcaBasis'].value
+            self._np_variance = hf['shape/model/pcaVariance'].value
+            self._np_std = np.sqrt(self._np_variance)
 
-        self._basis = normalize_basis(self._basis, self._variance)
+        shape = np.reshape(self._np_mean, (self.representer.number_of_points, self.representer.dimension))
+        self._center = np.mean(shape, axis=0)
 
-        x, y, z = self.xyz
-        self._center = np.array([np.mean(x), np.mean(y), np.mean(z)])
+        # self._basis = normalize_basis(self._basis, self._variance)
+        self._mean = tf.constant(self._np_mean, dtype=tf.float32)
+        self._basis = tf.constant(self._np_basis.T, dtype=tf.float32)
+        self._std = tf.constant(self._np_std, dtype=tf.float32)
 
         self._define_landmarks_indexes()
         self._compute_landmarks_data()
-        self._number_of_used_components = self.number_of_components
+        # self._number_of_used_components = self.number_of_components
 
         # read expressions model
         self._expressions = ExpressionModel(filename=self.filename)
@@ -367,9 +368,6 @@ class ShapeModel(ModelBase):
 class ColorModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename)
-        self._mean = None
-        self._basis = None
-        self._variance = None
 
     def __repr__(self):
         info = (
@@ -378,27 +376,16 @@ class ColorModel(ModelBase):
         )
         return info
 
-    @property
-    def number_of_components(self):
-        if self._basis is None:
-            return None
-        else:
-            return self._basis.shape[1]
-
-    @property
-    def colors(self):
-        return np.reshape(self._mean, [int(len(self._mean)/3), 3])
-
     def initialize(self):
         with h5py.File(self.filename, 'r') as hf:
-            self._mean = np.array(hf['color/model/mean'])
-            self._basis = np.array(hf['color/model/pcaBasis'])
-            self._variance = np.array(hf['color/model/pcaVariance'])
+            self._np_mean = np.array(hf['color/model/mean'])
+            self._np_basis = np.array(hf['color/model/pcaBasis'])
+            self._np_variance = np.array(hf['color/model/pcaVariance'])
+            self._np_std = np.sqrt(self._np_variance)
 
-        self._basis = normalize_basis(self._basis, self._variance)
-
-    def transform(self, parameters):
-        raise NotImplementedError
+        self._mean = tf.constant(self._np_mean, dtype=tf.float32)
+        self._basis = tf.constant(self._np_basis.T, dtype=tf.float32)
+        self._std = tf.constant(self._np_std, dtype=tf.float32)
 
 
 class FaceModel:
@@ -431,14 +418,17 @@ class FaceModel:
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
 
-        x, y, z = self.shape.xyz
-        shape = np.reshape(self.shape._mean, [self.shape.representer.number_of_points, self.shape.representer.dimension])
-        points = landmarks.to_array(self.shape.landmarks)
+        shape = (self.shape.representer.number_of_points, self.shape.representer.dimension)
+        points = np.reshape(self.shape.np_mean, shape)
+        colors = np.reshape(self.color.np_mean, shape)
+
+        #points = landmarks.to_array(self.shape.landmarks)
 
         fig = plt.figure()
         ax = fig.gca(projection='3d')
-        ax.scatter(x[::step], y[::step], z[::step], c=self.color.colors[::step, :], marker='.')
-        ax.scatter(points[:, 0], points[:, 1], points[:, 2], c='r', marker='o', s=50)
+        ax.scatter(points[::step, 0], points[::step, 1], points[::step, 2], c=colors[::step, :], marker='.')
+        # if points is not None:
+        #     ax.scatter(points[:, 0], points[:, 1], points[:, 2], c='r', marker='o', s=50)
         ax.set_xlabel('x label')
         ax.set_ylabel('y label')
         ax.set_zlabel('z label')
@@ -447,19 +437,20 @@ class FaceModel:
         labels = ('x label', 'y label', 'z label')
 
         def show_landmarks(ax, i, k):
-            ax.scatter(shape[:, i], shape[:, k], color=self.color.colors, marker='.')
-            ax.scatter(points[:, i], points[:, k], c='r', marker='.')
+            ax.scatter(points[:, i], points[:, k], color=colors, marker='.')
             ax.set_xlabel(labels[i])
             ax.set_ylabel(labels[k])
             ax.axis('equal')
             ax.grid(True)
 
-            for landmark in self.shape.landmarks:
-                if landmark.weight == 1:
-                    color = 'green'
-                else:
-                    color = 'blue'
-                ax.text(landmark.point[i] + 1, landmark.point[k] + 1, '{}'.format(landmark.index), color=color)
+            # if points is not None:
+            #     ax.scatter(points[:, i], points[:, k], c='r', marker='.')
+            #     for landmark in self.shape.landmarks:
+            #         if landmark.weight == 1:
+            #             color = 'green'
+            #         else:
+            #             color = 'blue'
+            #         ax.text(landmark.point[i] + 1, landmark.point[k] + 1, '{}'.format(landmark.index), color=color)
 
         fig, ax = plt.subplots(1, 3)
         show_landmarks(ax[0], 0, 1)
@@ -472,13 +463,13 @@ class FaceModel:
     @property
     def default_parameters(self):
 
-        params0 = np.zeros((1, self.shape.number_of_components)) * np.sqrt(self.shape._variance)
+        params0 = np.zeros((1, self.shape.number_of_components))
         params0 = tf.Variable(params0, dtype=tf.float32, name='shape')
 
-        params1 = np.zeros((1, self.shape.expressions.number_of_components)) * np.sqrt(self.shape.expressions._variance)
+        params1 = np.zeros((1, self.shape.expressions.number_of_components))
         params1 = tf.Variable(params1, dtype=tf.float32, name='expressions')
 
-        params2 = np.zeros((1, self.color.number_of_components)) * np.sqrt(self.color._variance)
+        params2 = np.zeros((1, self.color.number_of_components))
         params2 = tf.Variable(params2, dtype=tf.float32, name='color')
 
         return params0, params1, params2
@@ -530,27 +521,32 @@ class ShapeModelTransform:
 
 # data to represent surface
 class ModelTransform:
-    def __init__(self, model=None, transform=None):
+    def __init__(self, model=None, transform=None, scale=100):
         self._model = model
         self._transform = transform
+        self._scale = scale
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def scale(self):
+        return self._scale
 
     def transform(self, params):
-        points = tf.constant(self._model.shape._mean, dtype=tf.float32) + \
-                 params[0] @ tf.constant(self._model.shape._basis.T, dtype=tf.float32) + \
-                 params[1] @ tf.constant(self._model.shape.expressions._basis.T, dtype=tf.float32)
+        points = self.model.shape.mean + \
+                 params[0] * self.model.shape.std @ self.model.shape.basis + \
+                 params[1] * self.model.shape.expressions.std @ self.model.shape.expressions.basis
 
-        colors = tf.constant(self._model.color._mean, dtype=tf.float32) + \
-                 params[2] @ tf.constant(self._model.color._basis.T, dtype=tf.float32)
+        colors = self.model.color.mean + \
+                 params[2] * self.model.color.std @ self.model.color.basis
 
-        # colors = colors - tf.reduce_min(colors)  # add loss here
-        # colors = colors / tf.reduce_max(colors)  # add loss here
+        # normalize and reshape
+        points = points / self.scale
 
-        # norm, and reshape
-        points = points / 200
-
-        colors = tf.reshape(colors, (1, self._model.shape.representer.number_of_points, 3))
-        points = tf.reshape(points, (1, self._model.shape.representer.number_of_points, 3))
-
+        colors = tf.reshape(colors, (1, self.model.shape.representer.number_of_points, 3))
+        points = tf.reshape(points, (1, self.model.shape.representer.number_of_points, 3))
         normals = points
 
         return points, colors, normals

@@ -19,6 +19,7 @@ if __name__ == '__main__':
     filename = os.path.join(os.path.pardir, 'data', 'model2017-1_bfm_nomouth.h5')
     model = FaceModel(filename=filename)
     model.initialize()
+    # model.plot()
 
     # camera position
     camera_position = np.array([0, 0, 5], dtype=np.float32)
@@ -31,7 +32,7 @@ if __name__ == '__main__':
     camera_up = tf.Variable(camera_up, name='camera_up_direction')
 
     # light positions and light intensities
-    light_positions = np.array([[[0, 0, 100], [0, 0, 100], [0, 0, 100]]], dtype=np.float32)
+    light_positions = np.array([[[0, 0, 50], [0, 0, 50], [0, 0, 50]]], dtype=np.float32)
     light_positions = tf.Variable(light_positions, name='light_positions')
 
     light_intensities = np.ones([1, 3, 3], dtype=np.float32)
@@ -41,31 +42,33 @@ if __name__ == '__main__':
     params = model.default_parameters
     t = ModelTransform(model=model)
     points, colors, normals = t.transform(params)
+    ambient_color = tf.Variable([[1, 1, 1]], dtype=tf.float32)
 
-    # render to 2d image
-    with tf.variable_scope('render'):
-        renderer = mesh_renderer(
-            points,
-            model.shape.representer.cells,
-            normals,
-            colors,
-            camera_position,
-            camera_look_at,
-            camera_up,
-            light_positions,
-            light_intensities,
-            width,
-            height,
-            ambient_color=None,
-            fov_y=20.0
-        )
+    cells = tf.constant(model.shape.representer.cells.T, dtype=tf.int32)
+
+    # initialize renderer
+    renderer = mesh_renderer(
+        points,
+        cells,
+        normals,
+        colors,
+        camera_position,
+        camera_look_at,
+        camera_up,
+        light_positions,
+        light_intensities,
+        width,
+        height,
+        ambient_color=ambient_color
+    )
 
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
-    rendered_images_,  = sess.run([renderer])
+    output = sess.run([renderer])
 
-    rendered_images = rendered_images_[0, :, :]
-    rendered_images -= np.min(rendered_images)
-    rendered_images /= np.max(rendered_images)
-    plt.imshow(rendered_images)
+    # show rendered image
+    image = output[0][0, :, :, :3]
+    print('maximal value', np.max(image))
+    image /= np.max(image)
+    plt.imshow(image)
     plt.show()

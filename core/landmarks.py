@@ -151,4 +151,7 @@ model2017_1_bfm_nomouth_dlib = (
 
 
 def to_array(landmarks):
-    return np.array([pair.point for pair in landmarks])
+    if landmarks is None:
+        return None
+    else:
+        return np.array([pair.point for pair in landmarks])
