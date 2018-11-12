@@ -10,6 +10,7 @@ from mesh_renderer.mesh_renderer import mesh_renderer
 
 height = 512
 width = 512
+number_of_iterations = 1000
 
 
 def blend(image, background):
@@ -42,22 +43,12 @@ if __name__ == '__main__':
     print(model)
     # model.plot()
 
-    # generate points of the face model
-    params = model.default_parameters
-    t = ModelTransform(model=model)
-    points, colors, normals = t.transform(params)
-    cells = tf.constant(model.shape.representer.cells.T, dtype=tf.int32)
-
     # ------------------------------------------------------------------------------------------------------------------
     real_images_ = image[np.newaxis, :, :, :] / 255
     print(real_images_.shape)
 
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())
-
     lr = 0.01
-    optimizer3 = tf.train.GradientDescentOptimizer(lr)
+    optimizer = tf.train.GradientDescentOptimizer(lr)
 
     # camera position
     camera_position = np.array([0, 0, 5], dtype=np.float32)
@@ -79,10 +70,26 @@ if __name__ == '__main__':
     # ambient colors
     ambient_color = tf.Variable([[0.25, 0.25, 0.25]], dtype=tf.float32)
 
+    lambdas_orig = tf.Variable(
+        np.random.uniform(-0.1, 0.1, (1, model.shape.number_of_components,)),
+        dtype=tf.float32, name='color_variables'
+    )
+
+    lambdas_expr_orig = tf.Variable(
+        np.random.uniform(-0.1, 0.1, (1, model.shape.expressions.number_of_components,)),
+        dtype=tf.float32, name='color_variables'
+    )
+
     lambdas_color_orig = tf.Variable(
         np.random.uniform(-0.1, 0.1, (1, model.color.number_of_components,)),
         dtype=tf.float32, name='color_variables'
     )
+
+    # generate points of the face model
+    params = (lambdas_orig, lambdas_expr_orig, lambdas_color_orig)
+    t = ModelTransform(model=model)
+    points, colors, normals = t.transform(params)
+    cells = tf.constant(model.shape.representer.cells.T, dtype=tf.int32)
 
     # render to 2d image
     with tf.variable_scope('render'):
@@ -111,11 +118,14 @@ if __name__ == '__main__':
     loss_l4 = tf.reduce_sum(tf.abs(image_diff_l4))
 
     variables = [light_positions, light_intensities, ambient_color, lambdas_color_orig]
-    gradients, variables = zip(*optimizer3.compute_gradients(loss_l4, variables))
+    gradients, variables = zip(*optimizer.compute_gradients(loss_l4, variables))
 
-    train_step = optimizer3.apply_gradients(list(zip(gradients, variables)))
+    train_step = optimizer.apply_gradients(list(zip(gradients, variables)))
 
-    number_of_iterations = 1000
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
+
     print('optimization has been started')
 
     for i in range(number_of_iterations):
@@ -123,26 +133,6 @@ if __name__ == '__main__':
             sess.run([train_step, rendered_images, loss_l4, image_diff_l4, light_positions],
                      feed_dict={image_2d: real_images_})
 
-        # train_writer.add_summary(merged_, i)
-        real_images__ = real_images_[0, :, :]
-        rendered_images_ = rendered_images_[0, :, :]
-
-        # print(real_images__.shape)
-        # print(rendered_images_.shape)
-        if i % 100 == 1:
-            print(np.min(rendered_images_), np.max(rendered_images_))
-
-            rendered_images_ -= np.min(rendered_images_)
-            rendered_images_ /= np.max(rendered_images_)
-
-            image_diff_l4_ -= np.min(image_diff_l4_)
-            image_diff_l4_ /= np.max(image_diff_l4_)
-
-            # display_pairs_images(real_images__, rendered_images_)
-            # plt.imshow(image_diff_l4_[0, ...])
-            # plt.show()
-
-            print(light_positions_)
-            print(loss_)
-
-
+        if i == 0 or (i+1) % 100 == 0:
+            print('iteration', i+1, '(', number_of_iterations, '), loss', loss_)
+            print('light positions', light_positions_)
