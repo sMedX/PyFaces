@@ -4,12 +4,13 @@ import os
 import cv2
 import numpy as np
 import tensorflow as tf
+from core import transforms
 from core.models import FaceModel, ModelTransform
 from mesh_renderer.mesh_renderer import mesh_renderer
 from core import imutils
 
 number_of_stages = 10
-number_of_iterations = 1000
+number_of_iterations = 500
 scale = 0.5
 
 
@@ -67,19 +68,30 @@ if __name__ == '__main__':
     light_intensities = tf.Variable(light_intensities, name='light_intensities')
 
     # ambient colors
-    ambient_color = tf.Variable([[0.25, 0.25, 0.25]], dtype=tf.float32)
+    ambient_color = tf.Variable(np.ones([1, 3]), dtype=tf.float32)
 
-    # generate model
+    # ------------------------------------------------------------------------------------------------------------------
+    # initialize spatial transform
+    spatial_transform = transforms.TranslationTransform() #SimilarityEuler3DTransform()
+    spatial_transform.center = model.shape.center
+    spatial_parameters = spatial_transform.parameters
+
+    # initialize model transform
+    model_transform = ModelTransform(model=model)
+    model_transform.spatial_transform = spatial_transform
+
     lambdas_shape, lambdas_expression, lambdas_color = model.default_parameters
-    t = ModelTransform(model=model)
-    points, colors, normals = t.transform((lambdas_shape, lambdas_expression, lambdas_color))
-    cells = tf.constant(model.shape.representer.cells.T, dtype=tf.int32)
+    points, colors, normals = model_transform.transform([lambdas_shape,
+                                                         lambdas_expression,
+                                                         lambdas_color,
+                                                         spatial_parameters])
 
-    # render to 2d image
+    # ------------------------------------------------------------------------------------------------------------------
+    # initialize render to 2d image
     with tf.variable_scope('render'):
         render = mesh_renderer(
             points,
-            cells,
+            model.shape.representer.cells,
             normals,
             colors,
             camera_position,
@@ -93,15 +105,15 @@ if __name__ == '__main__':
             fov_y=float(30)
         )
 
-    rendered_images = blend(render, np.array([1, 0, 0]))
-    input_image = image[np.newaxis, :, :, :] / 255
+    rendered_images = blend(render, np.array([0.7, 0.2, 0.2]))
+    input_image = np.float32(image[np.newaxis, :, :, :] / 255)
 
     image_2d = tf.placeholder(tf.float32, (1, height, width, 3))
     image_diff = (image_2d - rendered_images)/255
     image_diff = tf.nn.avg_pool(image_diff, (1, 4, 4, 1), (1, 4, 4, 1), 'VALID')
     loss = tf.reduce_sum(tf.abs(image_diff))
 
-    variables = (light_positions, light_intensities, ambient_color, lambdas_shape, lambdas_color)
+    variables = (light_positions, light_intensities, ambient_color, spatial_parameters, lambdas_shape, lambdas_color)
     gradients, variables = zip(*optimizer.compute_gradients(loss, variables))
     train_step = optimizer.apply_gradients(list(zip(gradients, variables)))
 
@@ -118,8 +130,9 @@ if __name__ == '__main__':
                             light_positions,     # 3
                             light_intensities,   # 4
                             ambient_color,       # 5
-                            lambdas_shape,       # 6
-                            lambdas_color),      # 7
+                            spatial_parameters,  # 6
+                            lambdas_shape,       # 7
+                            lambdas_color),      # 8
                            feed_dict={image_2d: input_image})
 
         if i == 0 or (i+1) % 100 == 0:
@@ -127,7 +140,10 @@ if __name__ == '__main__':
             print('iteration', i+1, '(', number_of_iterations, '), loss', outputs[2])
             print('light positions', outputs[3])
             print('  ambient color', outputs[5])
-            print('norms', np.linalg.norm(outputs[6]), np.linalg.norm(outputs[7]))
+            print('spatial_parameters', outputs[6])
+            print('norms', np.linalg.norm(outputs[7]), np.linalg.norm(outputs[8]))
 
     # show images
-    imutils.imshow((image, outputs[1][0]))
+    input_image = input_image[0]
+    rendered_image = outputs[1][0]
+    imutils.imshow((input_image, rendered_image, rendered_image - input_image))
