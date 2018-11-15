@@ -13,8 +13,11 @@ import tensorflow as tf
 class Representer:
     def __init__(self, filename=None):
         self._filename = filename
-        self._cells = None
+
         self._points = None
+
+        self._np_cells = None
+        self._cells = None
 
     def __repr__(self):
         """Representation of representer"""
@@ -48,13 +51,19 @@ class Representer:
         return self._points
 
     @property
+    def np_cells(self):
+        return self._np_cells
+
+    @property
     def cells(self):
         return self._cells
 
     def initialize(self):
         with h5py.File(self.filename, 'r') as hf:
             self._points = hf['shape/representer/points'].value
-            self._cells = hf['shape/representer/cells'].value
+            self._np_cells = hf['shape/representer/cells'].value
+
+        self._cells = tf.constant(self._np_cells.T, dtype=tf.int32)
 
 
 class ModelBase:
@@ -152,6 +161,9 @@ class ShapeModel(ModelBase):
         self._representer = Representer(filename=self.filename)
         self._expression = ExpressionModel(filename=self.filename)
 
+        self._np_center = None
+        self._center = None
+
     def __repr__(self):
         info = (
              '{}\n'.format(self.__class__.__name__) +
@@ -169,10 +181,23 @@ class ShapeModel(ModelBase):
     def expression(self):
         return self._expression
 
+    @property
+    def np_center(self):
+        return self._np_center
+
+    @property
+    def center(self):
+        return self._center
+
     def initialize(self):
         super().initialize()
         self._representer.initialize()
         self._expression.initialize()
+
+        points = np.reshape(self.np_mean, (self.representer.number_of_points, self.representer.dimension))
+
+        self._np_center = np.mean(points, axis=0)
+        self._center = tf.constant(self._np_center, dtype=tf.float32, name='center')
 
 
 # color model
@@ -265,6 +290,7 @@ class ModelTransform:
         self._model = model
         self._transform = transform
         self._scale = scale
+        self._spatial_transform = None
 
     @property
     def model(self):
@@ -274,19 +300,31 @@ class ModelTransform:
     def scale(self):
         return self._scale
 
+    @property
+    def spatial_transform(self):
+        return self._spatial_transform
+
+    @spatial_transform.setter
+    def spatial_transform(self, transform):
+        self._spatial_transform = transform
+
     def transform(self, params):
+        # transform points
         points = self.model.shape.mean + \
                  params[0] * self.model.shape.std @ self.model.shape.basis + \
                  params[1] * self.model.shape.expression.std @ self.model.shape.expression.basis
 
+        points = tf.reshape(points, (self.model.shape.representer.number_of_points, 3))
+        points = self.spatial_transform.transform(points, params[3])
+        points = points / self.scale
+        points = tf.expand_dims(points, 0)
+
+        # transform colors
         colors = self.model.color.mean + \
                  params[2] * self.model.color.std @ self.model.color.basis
-
-        # normalize and reshape
-        points = points / self.scale
-
         colors = tf.reshape(colors, (1, self.model.shape.representer.number_of_points, 3))
-        points = tf.reshape(points, (1, self.model.shape.representer.number_of_points, 3))
+
+        # compute normals
         normals = points
 
         return points, colors, normals
