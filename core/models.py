@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 import core.landmarks as landmarks
 import tensorflow as tf
+from . import transforms
 
 
 # data to represent surface
@@ -71,7 +72,9 @@ class ModelBase:
     def __init__(self, filename=None, name=None):
         self._filename = filename
         self._name = name
+        self._initialized = False
 
+        self._number_of_used_components = None
         self._np_mean = None
         self._np_basis = None
         self._np_variance = None
@@ -124,10 +127,30 @@ class ModelBase:
 
     @property
     def number_of_components(self):
-        if self._basis is None:
+        if self._np_basis is None:
             return None
         else:
-            return self._basis.shape[0]
+            return self._np_basis.shape[1]
+
+    @property
+    def number_of_used_components(self):
+        return self._number_of_used_components
+
+    @number_of_used_components.setter
+    def number_of_used_components(self, n):
+        self._number_of_used_components = n
+        if self._initialized is False:
+            return
+
+        if n is None:
+            n = self.number_of_components
+        else:
+            n = max(n, 0)
+            n = min(n, self.number_of_components)
+
+        self._number_of_used_components = n
+        self._basis = tf.constant(self._np_basis[:, :self._number_of_used_components].T, dtype=tf.float32)
+        self._std = tf.constant(self._np_std[:self._number_of_used_components], dtype=tf.float32)
 
     def initialize(self):
         with h5py.File(self.filename, 'r') as hf:
@@ -136,9 +159,16 @@ class ModelBase:
             self._np_variance = hf[self._name + '/model/pcaVariance'].value
             self._np_std = np.sqrt(self._np_variance)
 
+        if self._number_of_used_components is None:
+            self._number_of_used_components = self.number_of_components
+        else:
+            self._number_of_used_components = max(self.number_of_used_components, 0)
+            self._number_of_used_components = min(self.number_of_used_components, self.number_of_components)
+
         self._mean = tf.constant(self._np_mean, dtype=tf.float32)
-        self._basis = tf.constant(self._np_basis.T, dtype=tf.float32)
-        self._std = tf.constant(self._np_std, dtype=tf.float32)
+        self._basis = tf.constant(self._np_basis[:, :self.number_of_used_components].T, dtype=tf.float32)
+        self._std = tf.constant(self._np_std[:self.number_of_used_components], dtype=tf.float32)
+        self._initialized = True
 
 
 # expression model
@@ -190,6 +220,7 @@ class ShapeModel(ModelBase):
         return self._center
 
     def initialize(self):
+        # self.number_of_used_components = 20
         super().initialize()
         self._representer.initialize()
         self._expression.initialize()
@@ -272,13 +303,13 @@ class FaceModel:
     @property
     def default_parameters(self):
 
-        params0 = np.zeros((1, self.shape.number_of_components))
+        params0 = np.zeros((1, self.shape.number_of_used_components))
         params0 = tf.Variable(params0, dtype=tf.float32, name='shape')
 
-        params1 = np.zeros((1, self.shape.expression.number_of_components))
+        params1 = np.zeros((1, self.shape.expression.number_of_used_components))
         params1 = tf.Variable(params1, dtype=tf.float32, name='expressions')
 
-        params2 = np.zeros((1, self.color.number_of_components))
+        params2 = np.zeros((1, self.color.number_of_used_components))
         params2 = tf.Variable(params2, dtype=tf.float32, name='color')
 
         return params0, params1, params2
@@ -286,11 +317,11 @@ class FaceModel:
 
 # data to represent surface
 class ModelTransform:
-    def __init__(self, model=None, transform=None, scale=100):
+    def __init__(self, model, transform=None, scale=100):
         self._model = model
-        self._transform = transform
+        self._parameters = model.default_parameters
+        self._spatial_transform = transform
         self._scale = scale
-        self._spatial_transform = None
 
     @property
     def model(self):
@@ -301,27 +332,36 @@ class ModelTransform:
         return self._scale
 
     @property
+    def parameters(self):
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, parameters):
+        self._parameters = parameters
+
+    @property
     def spatial_transform(self):
         return self._spatial_transform
 
     @spatial_transform.setter
     def spatial_transform(self, transform):
+        transform.center = self.model.shape.center
         self._spatial_transform = transform
 
-    def transform(self, params):
+    def transform(self):
         # transform points
         points = self.model.shape.mean + \
-                 params[0] * self.model.shape.std @ self.model.shape.basis + \
-                 params[1] * self.model.shape.expression.std @ self.model.shape.expression.basis
+                 self.parameters[0] * self.model.shape.std @ self.model.shape.basis + \
+                 self.parameters[1] * self.model.shape.expression.std @ self.model.shape.expression.basis
 
         points = tf.reshape(points, (self.model.shape.representer.number_of_points, 3))
-        points = self.spatial_transform.transform(points, params[3])
+        points = self.spatial_transform.transform(points)
+
         points = points / self.scale
         points = tf.expand_dims(points, 0)
 
         # transform colors
-        colors = self.model.color.mean + \
-                 params[2] * self.model.color.std @ self.model.color.basis
+        colors = self.model.color.mean + self.parameters[2] * self.model.color.std @ self.model.color.basis
         colors = tf.reshape(colors, (1, self.model.shape.representer.number_of_points, 3))
 
         # compute normals

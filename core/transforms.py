@@ -84,8 +84,8 @@ class AffineTransformBase:
 
     @parameters.setter
     def parameters(self, parameters):
-        if len(parameters) != self.number_of_parameters:
-            raise ValueError('wrong array length to set transform parameters')
+        # if len(parameters) != self.number_of_parameters:
+        #     raise ValueError('wrong array length to set transform parameters')
         self._parameters = parameters
 
     # number of parameters
@@ -121,16 +121,17 @@ class TranslationTransform(AffineTransformBase):
     The serialization of the optimizable parameters is an array of 3 elements.
     The 3 parameters defines the translation in each dimension.
     """
-    def __init__(self):
+    def __init__(self, parameters=None):
         super().__init__()
-        self._parameters = tf.Variable(np.array([0, 0, 0]), dtype=tf.float32)
+        if parameters is None:
+            parameters = np.array([0, 0, 0])
+        self._parameters = tf.Variable(parameters, dtype=tf.float32)
 
     @property
     def translation(self):
-        return tf.stack([self.parameters[0], self.parameters[1], self.parameters[2]])
+        return self.parameters
 
-    def transform(self, points, parameters):
-        self._parameters = parameters
+    def transform(self, points):
         points = points + self.translation
         return points
 
@@ -192,91 +193,8 @@ class SimilarityEuler3DTransform(AffineTransformBase):
     def translation(self):
         return tf.stack([self.parameters[3], self.parameters[4], self.parameters[5]])
 
-    def transform(self, points, parameters):
-        self._parameters = parameters
-
+    def transform(self, points):
         self._matrix = self.scale * rotation_matrix(self.parameters[0], self.parameters[1], self.parameters[2])
         self._offset = self.translation + self.center - tf.expand_dims(self.center, 0) @ tf.transpose(self.matrix)
 
         return points @ tf.transpose(self.matrix) + self.offset
-
-
-# ======================================================================================================================
-# similarity Euler 3D transform
-class ProjectionSimilarityEuler3DTransform(SimilarityEuler3DTransform):
-    """
-    The serialization of the optimizable parameters is an array of 6 elements. The first 3 represents three euler angle
-    of rotation respectively about the X, Y and Z axis. The next 2 parameters defines the translation in x and y dimensions.
-    The last parameter defines the isotropic scaling.
-    """
-    def __init__(self):
-        super().__init__()
-        default_parameters = np.array([0, 0, 0, 0, 0, 1])
-        self._number_of_parameters = len(default_parameters)
-        self._parameters = default_parameters
-
-        self._projector = np.array([[1, 0, 0], [0, 1, 0]])
-        self._matrix = np.array([[1, 0, 0], [0, 1, 0]])
-        self._offset = np.zeros(2)
-
-        self._jacobian = np.zeros([2, self.number_of_parameters])
-
-    def __repr__(self):
-        """Representation of transform"""
-        info = (
-                '{}'.format(super().__repr__()) +
-                'projector {}\n'.format(self.projector.tolist())
-        )
-        return info
-
-    @SimilarityEuler3DTransform.parameters.setter
-    def parameters(self, parameters):
-        SimilarityEuler3DTransform.parameters.fset(self, parameters)
-        if self.scale <= 0:
-            raise ValueError('wrong value for scale in array of parameters')
-
-    @property
-    def translation(self):
-        return np.array([self.parameters[3], self.parameters[4]])
-
-    @property
-    def projector(self):
-        return self._projector
-
-    def compute_jacobian_with_respect_to_parameters(self, point):
-        p = point - self.center
-
-        # rotation
-        angle_x, angle_y, angle_z = self.angles
-
-        cx = np.cos(angle_x)
-        sx = np.sin(angle_x)
-        cy = np.cos(angle_y)
-        sy = np.sin(angle_y)
-        cz = np.cos(angle_z)
-        sz = np.sin(angle_z)
-
-        self._jacobian[0][0] = (-sz * cx * sy) * p[0] + (sz * sx) * p[1] + (sz * cx * cy) * p[2]
-        self._jacobian[1][0] = (cz * cx * sy) * p[0] + (-cz * sx) * p[1] + (-cz * cx * cy) * p[2]
-
-        self._jacobian[0][1] = (-cz * sy - sz * sx * cy) * p[0] + (cz * cy - sz * sx * sy) * p[2]
-        self._jacobian[1][1] = (-sz * sy + cz * sx * cy) * p[0] + (sz * cy + cz * sx * sy) * p[2]
-
-        self._jacobian[0][2] = (-sz * cy - cz * sx * sy) * p[0] + (-cz * cx) * p[1] + (-sz * sy + cz * sx * cy) * p[2]
-        self._jacobian[1][2] = (cz * cy - sz * sx * sy) * p[0] + (-sz * cx) * p[1] + (cz * sy + sz * sx * cy) * p[2]
-
-        # translation
-        self._jacobian[0, 3] = 1
-        self._jacobian[1, 4] = 1
-
-        # scaling
-        self._jacobian[:, 5] = self.matrix @ p
-
-        return self._jacobian
-
-    def _compute_matrix(self):
-        super()._compute_matrix()
-        self._matrix = self.projector @ self.matrix
-
-    def _compute_offset(self):
-        self._offset = self.translation + self._projector @ self.center - self.matrix @ self.center
