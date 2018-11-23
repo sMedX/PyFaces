@@ -46,9 +46,9 @@ class Dlib:
         # show the output image with the face detections
         fig, ax = plt.subplots()
         ax.imshow(self.image)
-        ax.scatter(self.points[:, 0], self.points[:, 1], c='r', marker='.', s=5)
+        ax.scatter(self.points[:, 0], self.points[:, 1], c='g', marker='*', s=5)
 
         for count, point in enumerate(self.points):
             plt.text(point[0] + 1, point[1] + 1, '{}'.format(count), color='blue', fontsize=7)
 
-        plt.show()
+        return ax

@@ -114,8 +114,7 @@ if __name__ == '__main__':
     image_diff = tf.nn.avg_pool(image_diff, (1, n, n, 1), (1, n, n, 1), 'VALID')
     loss = tf.reduce_mean(tf.abs(image_diff))
 
-#    variables = (light_positions, light_intensities, ambient_color, spatial_parameters, lambdas_color)
-    variables = spatial_parameters
+    variables = (light_positions, light_intensities, ambient_color, spatial_parameters, lambdas_color)
     gradients, variables = zip(*optimizer.compute_gradients(loss, variables))
     train_step = optimizer.apply_gradients(list(zip(gradients, variables)))
 

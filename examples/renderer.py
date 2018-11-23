@@ -27,6 +27,7 @@ if __name__ == '__main__':
     # camera position
     camera_position = np.array([0, 0, 5], dtype=np.float32)
     camera_position = tf.Variable(camera_position, name='camera_position')
+    tf.expand_dims(camera_position, axis=0)
     camera_position = tf.tile(tf.expand_dims(camera_position, axis=0), [1, 1])
 
     camera_look_at = np.array([0, 0, 0], dtype=np.float32)
@@ -89,6 +90,7 @@ if __name__ == '__main__':
     image_file = os.path.join(os.path.pardir, 'data', image_file)
     cv2.imwrite(image_file, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
 
+    # transform model points to image
     camera_matrices = camera_utils.look_at(camera_position, camera_look_at, camera_up)
     perspective_transform = camera_utils.perspective(width/height, fov_y, near_clip, far_clip)
     transform = tf.matmul(perspective_transform, camera_matrices)
@@ -98,14 +100,21 @@ if __name__ == '__main__':
     clip_space_points = tf.matmul(points, transform, transpose_b=True)
     clip_space_points_w = tf.maximum(tf.abs(clip_space_points[:, :, 3:4]), divide_threshold) * tf.sign(clip_space_points[:, :, 3:4])
 
-    normalized_device_coordinates = (clip_space_points[:, :, 0:3] / clip_space_points_w)
+    normalized_device_coordinates = clip_space_points[:, :, 0:3] / clip_space_points_w
 
-    output = sess.run([normalized_device_coordinates])
-    x = output[0][0][:, 0]
-    y = output[0][0][:, 1]
+    x_image_coordinates = (normalized_device_coordinates[0, :, 0] + tf.constant(1, dtype=tf.float32))*tf.constant(width/2, dtype=tf.float32)
+    x_image_coordinates = tf.expand_dims(x_image_coordinates, axis=1)
 
-    x = (x + 1)*width/2
-    y = (1 - y)*height/2
+    y_image_coordinates = (tf.constant(1, dtype=tf.float32) - normalized_device_coordinates[0, :, 1])*tf.constant(height/2, dtype=tf.float32)
+    y_image_coordinates = tf.expand_dims(y_image_coordinates, axis=1)
+
+    image_coordinates = tf.concat((x_image_coordinates, y_image_coordinates), axis=1)
+
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+    output = sess.run([image_coordinates])
+    x = output[0][:, 0]
+    y = output[0][:, 1]
 
     # show outputs
     fig, axes = plt.subplots(1, 2)

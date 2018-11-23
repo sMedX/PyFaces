@@ -5,7 +5,6 @@ from mpl_toolkits.mplot3d import Axes3D
 
 import h5py
 import numpy as np
-import core.landmarks as landmarks
 import tensorflow as tf
 from . import transforms
 
@@ -245,9 +244,12 @@ class ColorModel(ModelBase):
 
 
 class FaceModel:
-    def __init__(self, filename=None):
+    def __init__(self, filename, landmarks=None):
         self._shape = ShapeModel(filename=filename)
         self._color = ColorModel(filename=filename)
+        self._landmarks = landmarks
+
+        self.initialize()
 
     def __repr__(self):
         """Representation of FaceModel"""
@@ -257,6 +259,10 @@ class FaceModel:
              '{}'.format(self._color.__repr__())
         )
         return info
+
+    @property
+    def landmarks(self):
+        return self._landmarks
 
     @property
     def shape(self):
