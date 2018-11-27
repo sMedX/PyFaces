@@ -25,6 +25,9 @@ class LandmarkListBase:
     def get_weights(self):
         return np.array([landmark.weight for landmark in self.landmarks])
 
+    def get_binary_weights(self, threshold=0):
+        return np.array([landmark.weight > threshold for landmark in self.landmarks])
+
 
 class BaselFaceModeNoMouth2017Dlib(LandmarkListBase):
     def __init__(self):

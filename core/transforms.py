@@ -29,7 +29,10 @@ class AffineTransformBase:
         self._scaling = np.array(scaling)
         self._initial_parameters = np.array(initial_parameters)
 
-        self._variable_parameters = tf.Variable(np.zeros(self.number_of_parameters), dtype=tf.float32)
+        self._variable_parameters = tf.Variable(np.zeros(self.number_of_parameters),
+                                                dtype=tf.float32,
+                                                name='variable_parameters')
+
         self._parameters = self.initial_parameters + self.scaling * self.variable_parameters
 
         self._center = None
@@ -57,6 +60,11 @@ class AffineTransformBase:
     def variable_parameters(self):
         return self._variable_parameters
 
+    @variable_parameters.setter
+    def variable_parameters(self, parameters):
+        self._variable_parameters = tf.Variable(parameters, dtype=tf.float32, name='variable_parameters')
+        self._parameters = self.initial_parameters + self.scaling * self.variable_parameters
+
     # number of parameters
     @property
     def number_of_parameters(self):
@@ -81,6 +89,20 @@ class AffineTransformBase:
     @property
     def translation(self):
         raise NotImplementedError
+
+
+# ======================================================================================================================
+# Translation transform
+class IdentityTransform(AffineTransformBase):
+    def __init__(self):
+        super().__init__()
+
+    @property
+    def translation(self):
+        return self.parameters
+
+    def transform(self, points):
+        return points
 
 
 # ======================================================================================================================

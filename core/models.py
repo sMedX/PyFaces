@@ -19,6 +19,8 @@ class Representer:
         self._np_cells = None
         self._cells = None
 
+        self.initialize()
+
     def __repr__(self):
         """Representation of representer"""
         info = (
@@ -85,6 +87,10 @@ class ModelBase:
         self._std = None
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def mean(self):
         return self._mean
 
@@ -123,6 +129,11 @@ class ModelBase:
     @filename.setter
     def filename(self, filename):
         self._filename = filename
+
+    def array2tensor(self, array=None):
+        if array is None:
+            array = np.zeros((1, self.number_of_components))
+        return tf.Variable(array, dtype=tf.float32, name=self.name)
 
     @property
     def number_of_components(self):
@@ -174,6 +185,7 @@ class ModelBase:
 class ExpressionModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename, name='expression')
+        self.initialize()
 
     def __repr__(self):
         info = (
@@ -187,11 +199,17 @@ class ExpressionModel(ModelBase):
 class ShapeModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename, name='shape')
+        # representer and expressions
         self._representer = Representer(filename=self.filename)
         self._expression = ExpressionModel(filename=self.filename)
 
-        self._np_center = None
-        self._center = None
+        # read shape data
+        self.initialize()
+
+        # compute center of the shape
+        shape = (self.representer.number_of_points, self.representer.dimension)
+        self._np_center = np.mean(np.reshape(self.np_mean, shape), axis=0)
+        self._center = tf.constant(self._np_center, dtype=tf.float32, name='center')
 
     def __repr__(self):
         info = (
@@ -218,22 +236,12 @@ class ShapeModel(ModelBase):
     def center(self):
         return self._center
 
-    def initialize(self):
-        # self.number_of_used_components = 20
-        super().initialize()
-        self._representer.initialize()
-        self._expression.initialize()
-
-        points = np.reshape(self.np_mean, (self.representer.number_of_points, self.representer.dimension))
-
-        self._np_center = np.mean(points, axis=0)
-        self._center = tf.constant(self._np_center, dtype=tf.float32, name='center')
-
 
 # color model
 class ColorModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename, name='color')
+        self.initialize()
 
     def __repr__(self):
         info = (
@@ -248,8 +256,6 @@ class FaceModel:
         self._shape = ShapeModel(filename=filename)
         self._color = ColorModel(filename=filename)
         self._landmarks = landmarks
-
-        self.initialize()
 
     def __repr__(self):
         """Representation of FaceModel"""
@@ -271,10 +277,6 @@ class FaceModel:
     @property
     def color(self):
         return self._color
-
-    def initialize(self):
-        self._shape.initialize()
-        self._color.initialize()
 
     def plot(self, step=3):
         shape = (self.shape.representer.number_of_points, self.shape.representer.dimension)
@@ -306,36 +308,23 @@ class FaceModel:
 
         return
 
-    @property
-    def default_parameters(self):
-
-        params0 = np.zeros((1, self.shape.number_of_used_components))
-        params0 = tf.Variable(params0, dtype=tf.float32, name='shape')
-
-        params1 = np.zeros((1, self.shape.expression.number_of_used_components))
-        params1 = tf.Variable(params1, dtype=tf.float32, name='expressions')
-
-        params2 = np.zeros((1, self.color.number_of_used_components))
-        params2 = tf.Variable(params2, dtype=tf.float32, name='color')
-
-        return params0, params1, params2
-
 
 # data to represent surface
 class ModelTransform:
-    def __init__(self, model, transform=None, scale=100):
+    def __init__(self, model, transform=transforms.IdentityTransform()):
         self._model = model
-        self._parameters = model.default_parameters
+
         self._spatial_transform = transform
-        self._scale = scale
+        self._spatial_transform.center = model.shape.center
+
+        self._parameters = list([self.model.shape.array2tensor(),
+                                 self.model.shape.expression.array2tensor(),
+                                 self.model.color.array2tensor()])
+
 
     @property
     def model(self):
         return self._model
-
-    @property
-    def scale(self):
-        return self._scale
 
     @property
     def parameters(self):
@@ -361,9 +350,9 @@ class ModelTransform:
                  self.parameters[1] * self.model.shape.expression.std @ self.model.shape.expression.basis
 
         points = tf.reshape(points, (self.model.shape.representer.number_of_points, 3))
-        points = self.spatial_transform.transform(points)
 
-        points = points / self.scale
+        # apply spatial transform
+        points = self.spatial_transform.transform(points)
         points = tf.expand_dims(points, 0)
 
         # transform colors
