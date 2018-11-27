@@ -8,6 +8,48 @@ import tensorflow as tf
 from mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
 
 
+# ======================================================================================================================
+class AmbientColor:
+    def __init__(self, color=(1, 1, 1)):
+        color = np.array(color)
+        if color.ndim == 1:
+            color = np.expand_dims(color, axis=0)
+
+        self.color = tf.Variable(color, dtype=tf.float32, name='ambient_color')
+
+
+class CameraConfig:
+    def __init__(self):
+        # camera position
+        position = np.array([[0, 0, 5]], dtype=np.float32)
+        self.position = tf.Variable(position, name='camera_position')
+
+        look_at = np.array([[0, 0, 0]], dtype=np.float32)
+        self.look_at = tf.Variable(look_at, name='camera_look_at')
+
+        up = np.array([[0, 1, 0]], dtype=np.float32)
+        self.up = tf.Variable(up, name='camera_up_direction')
+
+        self.ambient_color = AmbientColor().color
+
+        self.fov_y = tf.constant([30.0], dtype=tf.float32)
+        self.near_clip = tf.constant([0.01], dtype=tf.float32)
+        self.far_clip = tf.constant([10.0], dtype=tf.float32)
+
+        self.divide_threshold = divide_threshold
+        self.scale = 100
+
+
+class LightConfig:
+    def __init__(self):
+        positions = np.array([[[0, 0, 50], [0, 0, 50], [0, 0, 50]]], dtype=np.float32)
+        self.positions = tf.Variable(positions, name='light_positions')
+
+        intensities = np.zeros([1, 3, 3], dtype=np.float32)
+        self.intensities = tf.Variable(intensities, name='light_intensities')
+
+
+# ======================================================================================================================
 class BaselFaceModeNoMouth2017Dlib:
     def __init__(self):
         # model and landmark detector
@@ -17,30 +59,9 @@ class BaselFaceModeNoMouth2017Dlib:
         # landmark
         self.landmarks = landmarks.BaselFaceModeNoMouth2017Dlib()
 
-        class CameraConfig:
-            def __init__(self):
-                # camera position
-                position = np.array([0, 0, 5], dtype=np.float32)
-                position = tf.Variable(position, name='camera_position')
-                tf.expand_dims(position, axis=0)
-                self.position = tf.tile(tf.expand_dims(position, axis=0), [1, 1])
-
-                look_at = np.array([0, 0, 0], dtype=np.float32)
-                look_at = tf.Variable(look_at, name='camera_look_at')
-                self.look_at = tf.tile(tf.expand_dims(look_at, axis=0), [1, 1])
-
-                up = np.array([0, 1, 0], dtype=np.float32)
-                up = tf.Variable(up, name='camera_up_direction')
-                self.up = tf.tile(tf.expand_dims(up, axis=0), [1, 1])
-
-                self.fov_y = tf.constant([30.0], dtype=tf.float32)
-                self.near_clip = tf.constant([0.01], dtype=tf.float32)
-                self.far_clip = tf.constant([10.0], dtype=tf.float32)
-
-                self.divide_threshold = divide_threshold
-                self.scale = 100
-
         self.camera = CameraConfig()
+
+        self.light = LightConfig()
 
     @property
     def model_file(self):
