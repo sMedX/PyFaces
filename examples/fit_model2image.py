@@ -1,85 +1,47 @@
 __author__ = 'Ruslan N. Kosarev'
 
 import os
-import matplotlib.pyplot as plt
-import cv2
+from core import transforms
+from core.models import FaceModel, ModelTransform
+from core import imutils
+from core.fit import ModelToImageLandmarkRegistration, ModelToImageRegistration
+import config
 
-import numpy as np
-from scipy.optimize import minimize
-import core.transforms as transforms
-import core.metrics as metrics
-from core.models import FaceModel, ShapeModelTransform
-import core.landmarks as landmarks
-import core.landmark_detectors as detectors
-from thirdparty.facial_landmarks import imutils
+scale = 0.5
 
 # ======================================================================================================================
 if __name__ == '__main__':
 
-    # image file
-    image_file = 'basel_face_example.png'
-    image_file = os.path.join(os.path.pardir, 'data', image_file)
+    config = config.BaselFaceModeNoMouth2017Dlib()
 
-    # shape predictor file
-    shape_file = 'shape_predictor_68_face_landmarks.dat'
-    shape_file = os.path.join(os.path.pardir, 'data', shape_file)
+    # read image
+    filename = os.path.join(os.path.pardir, 'data', 'basel_face_example.png')
+    image = imutils.read(filename, scale=scale, show=False)
 
-    image = cv2.imread(image_file)
-    image = imutils.resize(image, width=500)
-    fixed_points = detectors.dlib_detector(image, shape_file)
-
-    # face model file
-    filename = 'model2017-1_bfm_nomouth.h5'
-
-    # read face model
-    filename = os.path.join(os.path.pardir, 'data', filename)
-    model = FaceModel(filename)
-    model.shape.landmarks = landmarks.model2017_1_bfm_nomouth_dlib
-    model.initialize()
-    model.shape.number_of_used_components = 0
-    # model.plot(step=3)
+    # read model face
+    filename = config.model_file
+    model = FaceModel(filename=filename, landmarks=config.landmarks)
     print(model)
 
-    # initialize transform
-    transform = transforms.ProjectionSimilarityEuler3DTransform()
-    transform.center = model.shape.center
-    print(transform)
+    # initialize model transform
+    transform = ModelTransform(model=model,
+                               transform=transforms.SimilarityEuler3DTransform())
 
-    # create metrics
-    metric = metrics.LandmarksShapeModelMetric()
-    metric.transform = transform
-    metric.model = model.shape
-    metric.fixed_points = fixed_points
+    # ------------------------------------------------------------------------------------------------------------------
+    # model to image landmark based registration
+    fit = ModelToImageLandmarkRegistration(image=image,
+                                           model=model,
+                                           detector=config.detector,
+                                           camera=config.camera,
+                                           transform=transform.spatial_transform)
+    fit.run()
+    fit.show()
 
-    # initial position
-    initial_parameters = np.zeros(metric.number_of_parameters)
-    initial_parameters[-1] = 1
-
-    print(metric)
-    print('  initial metric value', metric.value(parameters=initial_parameters))
-    print('initial jacobian value', metric.jacobian(parameters=initial_parameters))
-    print('    initial parameters', initial_parameters)
-    print()
-
-    res = minimize(metric.value,
-                   initial_parameters,
-                   method='BFGS',
-                   jac=metric.jacobian,
-                   options={'maxiter': 1000, 'gtol': 1e-5, 'disp': True})
-
-    print('results', res.x)
-
-    parameters = res.x
-
-    # apply shape transform to shape model
-    transform = ShapeModelTransform(model.shape, transforms.ProjectionSimilarityEuler3DTransform())
-    points = transform.transform_landmarks(parameters)
-
-    # show the output image with the face detections + facial landmarks
-    fig, ax = plt.subplots()
-    im = ax.imshow(cv2.cvtColor(image[::-1, :], cv2.COLOR_BGR2RGB), origin='lower')
-    ax.scatter(fixed_points[:, 0], fixed_points[:, 1], c='red', marker='.', s=5, label='detected landmarks')
-    ax.scatter(points[:, 0], points[:, 1], c='green', marker='.', s=5, label='face model landmarks')
-    ax.legend()
-    plt.show()
-
+    # ------------------------------------------------------------------------------------------------------------------
+    # model to image registration
+    fit = ModelToImageRegistration(image=image,
+                                   transform=transform,
+                                   camera=config.camera,
+                                   light=config.light)
+    fit.run()
+    fit.show()

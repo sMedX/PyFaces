@@ -21,7 +21,6 @@ if __name__ == '__main__':
     # initialize face model
     filename = os.path.join(os.path.pardir, 'data', 'model2017-1_bfm_nomouth.h5')
     model = FaceModel(filename=filename)
-    model.initialize()
     # model.plot()
 
     # camera position
