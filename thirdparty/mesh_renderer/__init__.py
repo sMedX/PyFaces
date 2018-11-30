@@ -18,7 +18,7 @@ def initialize(camera, light, points, cells, normals, colors, width, height):
         light.intensities,
         width,
         height,
-        ambient_color=camera.ambient_color,
+        ambient_color=camera.ambient_color.tensor,
         fov_y=camera.fov_y,
         near_clip=camera.near_clip,
         far_clip=camera.far_clip

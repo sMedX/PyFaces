@@ -2,6 +2,7 @@ __author__ = 'Ruslan N. Kosarev'
 
 import numpy as np
 import tensorflow as tf
+from . import tfSession
 
 
 # ======================================================================================================================
@@ -20,6 +21,13 @@ def rotation_matrix(angle_x, angle_y, angle_z):
     matrix = rotation_z @ rotation_x @ rotation_y
 
     return matrix
+
+
+def bounds_sigmoid(input, bounds=None):
+    if bounds is None:
+        return input
+    else:
+        return bounds * (2*tf.sigmoid(input / bounds) - 1)
 
 
 # ======================================================================================================================
@@ -60,11 +68,6 @@ class AffineTransformBase:
     def variable_parameters(self):
         return self._variable_parameters
 
-    @variable_parameters.setter
-    def variable_parameters(self, parameters):
-        self._variable_parameters = tf.Variable(parameters, dtype=tf.float32, name='variable_parameters')
-        self._parameters = self.initial_parameters + self.scaling * self.variable_parameters
-
     # number of parameters
     @property
     def number_of_parameters(self):
@@ -89,6 +92,12 @@ class AffineTransformBase:
     @property
     def translation(self):
         raise NotImplementedError
+
+    def update(self, input):
+        if isinstance(input, tf.Session):
+            values = input.run(self.variable_parameters)
+            self._variable_parameters = tf.Variable(values, dtype=tf.float32, name='variable_parameters')
+            self._parameters = self.initial_parameters + self.scaling * self.variable_parameters
 
 
 # ======================================================================================================================

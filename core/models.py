@@ -73,18 +73,16 @@ class ModelBase:
     def __init__(self, filename=None, name=None):
         self._filename = filename
         self._name = name
-        self._initialized = False
 
-        self._number_of_used_components = None
-        self._np_mean = None
-        self._np_basis = None
-        self._np_variance = None
-        self._np_std = None
+        with h5py.File(self.filename, 'r') as hf:
+            self._np_mean = hf[self._name + '/model/mean'].value
+            self._np_basis = hf[self._name + '/model/pcaBasis'].value
+            self._np_variance = hf[self._name + '/model/pcaVariance'].value
+            self._np_std = np.sqrt(self._np_variance)
 
-        self._mean = None
-        self._basis = None
-        self._variance = None
-        self._std = None
+        self._mean = tf.constant(self._np_mean, dtype=tf.float32)
+        self._basis = tf.constant(self._np_basis.T, dtype=tf.float32)
+        self._std = tf.constant(self._np_std, dtype=tf.float32)
 
     @property
     def name(self):
@@ -97,10 +95,6 @@ class ModelBase:
     @property
     def basis(self):
         return self._basis
-
-    @property
-    def variance(self):
-        return self._variance
 
     @property
     def std(self):
@@ -126,13 +120,9 @@ class ModelBase:
     def filename(self):
         return self._filename
 
-    @filename.setter
-    def filename(self, filename):
-        self._filename = filename
-
     def array2tensor(self, array=None):
         if array is None:
-            array = np.zeros((1, self.number_of_components))
+            array = np.zeros(self.number_of_components)
         return tf.Variable(array, dtype=tf.float32, name=self.name)
 
     @property
@@ -142,50 +132,11 @@ class ModelBase:
         else:
             return self._np_basis.shape[1]
 
-    @property
-    def number_of_used_components(self):
-        return self._number_of_used_components
-
-    @number_of_used_components.setter
-    def number_of_used_components(self, n):
-        self._number_of_used_components = n
-        if self._initialized is False:
-            return
-
-        if n is None:
-            n = self.number_of_components
-        else:
-            n = max(n, 0)
-            n = min(n, self.number_of_components)
-
-        self._number_of_used_components = n
-        self._basis = tf.constant(self._np_basis[:, :self._number_of_used_components].T, dtype=tf.float32)
-        self._std = tf.constant(self._np_std[:self._number_of_used_components], dtype=tf.float32)
-
-    def initialize(self):
-        with h5py.File(self.filename, 'r') as hf:
-            self._np_mean = hf[self._name + '/model/mean'].value
-            self._np_basis = hf[self._name + '/model/pcaBasis'].value
-            self._np_variance = hf[self._name + '/model/pcaVariance'].value
-            self._np_std = np.sqrt(self._np_variance)
-
-        if self._number_of_used_components is None:
-            self._number_of_used_components = self.number_of_components
-        else:
-            self._number_of_used_components = max(self.number_of_used_components, 0)
-            self._number_of_used_components = min(self.number_of_used_components, self.number_of_components)
-
-        self._mean = tf.constant(self._np_mean, dtype=tf.float32)
-        self._basis = tf.constant(self._np_basis[:, :self.number_of_used_components].T, dtype=tf.float32)
-        self._std = tf.constant(self._np_std[:self.number_of_used_components], dtype=tf.float32)
-        self._initialized = True
-
 
 # expression model
 class ExpressionModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename, name='expression')
-        self.initialize()
 
     def __repr__(self):
         info = (
@@ -202,9 +153,6 @@ class ShapeModel(ModelBase):
         # representer and expressions
         self._representer = Representer(filename=self.filename)
         self._expression = ExpressionModel(filename=self.filename)
-
-        # read shape data
-        self.initialize()
 
         # compute center of the shape
         shape = (self.representer.number_of_points, self.representer.dimension)
@@ -241,7 +189,6 @@ class ShapeModel(ModelBase):
 class ColorModel(ModelBase):
     def __init__(self, filename=None):
         super().__init__(filename=filename, name='color')
-        self.initialize()
 
     def __repr__(self):
         info = (
@@ -311,39 +258,52 @@ class FaceModel:
 
 # data to represent surface
 class ModelTransform:
-    def __init__(self, model, transform=transforms.IdentityTransform()):
+    def __init__(self, model, transform=transforms.IdentityTransform(), bounds=None):
         self._model = model
 
         self._spatial_transform = transform
         self._spatial_transform.center = model.shape.center
 
-        self._parameters = list([self.model.shape.array2tensor(),
-                                 self.model.shape.expression.array2tensor(),
-                                 self.model.color.array2tensor()])
+        # initialize bounds
+        if bounds is None:
+            bounds = (None, None, None)
 
+        if isinstance(bounds, (list, tuple)) is False:
+            raise TypeError('bounds must be list, or tuple')
+        elif len(bounds) != 3:
+            raise TypeError('bounds must have length 3')
+
+        self.bounds = bounds
+
+        # initialize parameters
+        self.variable_parameters = None
+        self.parameters = None
+
+        self.variable_parameters = [self.model.shape.array2tensor(),
+                                    self.model.shape.expression.array2tensor(),
+                                    self.model.color.array2tensor()]
+        self.initialize_parameters()
 
     @property
     def model(self):
         return self._model
 
     @property
-    def parameters(self):
-        return self._parameters
-
-    @parameters.setter
-    def parameters(self, parameters):
-        self._parameters = parameters
-
-    @property
     def spatial_transform(self):
         return self._spatial_transform
 
-    @spatial_transform.setter
-    def spatial_transform(self, transform):
-        transform.center = self.model.shape.center
-        self._spatial_transform = transform
+    def initialize_parameters(self):
+        self.parameters = list()
+
+        for values, bounds in zip(self.variable_parameters, self.bounds):
+            values = transforms.bounds_sigmoid(values, bounds)
+            self.parameters.append(tf.expand_dims(values, axis=0))
 
     def transform(self):
+
+        # initialize parameters (set bounds and expand dims)
+        self.initialize_parameters()
+
         # transform points
         points = self.model.shape.mean + \
                  self.parameters[0] * self.model.shape.std @ self.model.shape.basis + \
@@ -355,11 +315,29 @@ class ModelTransform:
         points = self.spatial_transform.transform(points)
         points = tf.expand_dims(points, 0)
 
-        # transform colors
-        colors = self.model.color.mean + self.parameters[2] * self.model.color.std @ self.model.color.basis
+        colors = self.model.color.mean + \
+                 self.parameters[2] * self.model.color.std @ self.model.color.basis
         colors = tf.reshape(colors, (1, self.model.shape.representer.number_of_points, 3))
 
         # compute normals
         normals = points
 
         return points, colors, normals
+
+    def update(self, input):
+        # update variable parameters
+        if isinstance(input, tf.Session):
+            for i, value in enumerate(self.variable_parameters):
+                self.variable_parameters[i] = tf.Variable(input.run(value), dtype=tf.float32)
+
+        elif isinstance(input, (list, tuple)):
+            for i, value in enumerate(input):
+                if isinstance(value, np.ndarray):
+                    self.variable_parameters[i] = tf.Variable(value, dtype=tf.float32)
+                elif value is not None:
+                    raise TypeError('value in the input list must be numpy.ndarray or None')
+        else:
+            raise TypeError('input must be tf.Session, list, or tuple')
+
+        # initialize model parameters (set bounds and expand dims)
+        self.initialize_parameters()
