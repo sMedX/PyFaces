@@ -6,10 +6,16 @@ import numpy as np
 
 
 # ======================================================================================================================
-def imshow(input):
+def range_image(image):
+    pass
+
+
+def imshow(input, show=True):
     """
-    show list of images
+
     :param input:
+    :param show:
+    :return:
     """
     if isinstance(input, (list, tuple)):
         fig, axes = plt.subplots(1, len(input))
@@ -17,9 +23,28 @@ def imshow(input):
             ax.imshow(img)
     else:
         plt.imshow(input)
+
+    if show is True:
         plt.show()
 
-    plt.show()
+
+def imshowdiff(img1, img2, show=True):
+    """
+
+    :param img1:
+    :param img2:
+    :param show:
+    :return:
+    """
+
+    fig, axes = plt.subplots(2, 2)
+    axes[0][0].imshow(img1)
+    axes[0][1].imshow(img2)
+    axes[1][0].imshow(img1 - img2)
+    axes[1][1].imshow(img2 - img1)
+
+    if show is True:
+        plt.show()
 
 
 # ======================================================================================================================
