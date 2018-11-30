@@ -9,13 +9,29 @@ from mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHO
 
 
 # ======================================================================================================================
-class AmbientColor:
-    def __init__(self, color=(1, 1, 1)):
-        color = np.array(color)
-        if color.ndim == 1:
-            color = np.expand_dims(color, axis=0)
+class Data:
+    def __init__(self):
+        self.inpdir = os.path.abspath('data')
+        self.outdir = os.path.abspath('output')
 
-        self.color = tf.Variable(color, dtype=tf.float32, name='ambient_color')
+
+# ======================================================================================================================
+class AmbientColor:
+    def __init__(self, value=(1, 1, 1), dtype=tf.float32):
+        self.dtype = dtype
+        self.value = np.expand_dims(np.array(value), axis=0)
+        self.tensor = tf.Variable(self.value, dtype=self.dtype, name=self.name)
+
+    @property
+    def name(self):
+        return self.__class__.__name__
+
+    def update(self, input):
+        if isinstance(input, tf.Session):
+            input = input.run(self.tensor)
+
+        self.value = input
+        self.tensor = tf.Variable(self.value, dtype=self.dtype, name=self.name)
 
 
 class CameraConfig:
@@ -30,7 +46,7 @@ class CameraConfig:
         up = np.array([[0, 1, 0]], dtype=np.float32)
         self.up = tf.Variable(up, name='camera_up_direction')
 
-        self.ambient_color = AmbientColor().color
+        self.ambient_color = AmbientColor()
 
         self.fov_y = tf.constant([30.0], dtype=tf.float32)
         self.near_clip = tf.constant([0.01], dtype=tf.float32)
