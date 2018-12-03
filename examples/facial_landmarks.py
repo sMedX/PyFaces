@@ -12,6 +12,10 @@ import numpy as np
 from thirdparty.facial_landmarks.imutils import face_utils
 from thirdparty.facial_landmarks import imutils
 
+inpdir = os.path.join(os.path.pardir, 'data')
+outdir = os.path.join(os.path.pardir, 'output')
+
+width = 500
 
 # ======================================================================================================================
 if __name__ == '__main__':
@@ -22,16 +26,17 @@ if __name__ == '__main__':
     # ap.add_argument("-i", "--image", required=True,	help="path to input image")
     # args = vars(ap.parse_args())
 
-    image_file = 'basel_face_example.png'
-    image_file = os.path.join(os.path.pardir, 'data', image_file)
+    # filename = os.path.join(inpdir, 'basel_face_example.png')
+    # filename = os.path.join(inpdir, 'example_01.jpg')
+    filename = os.path.join(inpdir, 'example_02.jpg')
 
     # shape predictor file
     shape_file = 'shape_predictor_68_face_landmarks.dat'
     shape_file = os.path.join(os.path.pardir, 'data', shape_file)
 
     # load the input image, resize it, and convert it to grayscale
-    image = cv2.imread(image_file)
-    image = imutils.resize(image, width=500)
+    image = cv2.imread(filename)
+    image = imutils.resize(image, width=width)
 
     # initialize dlib's face detector (HOG-based) and then create the facial landmark predictor
     detector = dlib.get_frontal_face_detector()
@@ -48,14 +53,13 @@ if __name__ == '__main__':
 
         # determine the facial landmarks for the face region, then convert the facial landmarks to a NumPy array
         shape = face_utils.shape_to_np(predictor(gray, rect))
-        shape[:, 1] = image.shape[0] - shape[:,1]
 
         # concatenate coordinates
         points = np.concatenate((points, shape), axis=0)
 
     # show the output image with the face detections + facial landmarks
     fig, ax = plt.subplots()
-    im = ax.imshow(cv2.cvtColor(image[::-1, :], cv2.COLOR_BGR2RGB), origin='lower')
+    im = ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     ax.scatter(points[:, 0], points[:, 1], c='r', marker='.', s=5)
 
     for count, point in enumerate(points):
