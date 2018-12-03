@@ -52,9 +52,9 @@ if __name__ == '__main__':
     # generate points of the face model
     spatial_transform = transforms.TranslationTransform([0, 0, 0])
 
-    model_transform = ModelTransform(model)
-    model_transform.spatial_transform = spatial_transform
+    model_transform = ModelTransform(model, transform=spatial_transform)
     points, colors, normals = model_transform.transform()
+    points = points / 100
 
     # initialize renderer
     renderer = mesh_renderer(

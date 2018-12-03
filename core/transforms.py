@@ -2,7 +2,6 @@ __author__ = 'Ruslan N. Kosarev'
 
 import numpy as np
 import tensorflow as tf
-from . import tfSession
 
 
 # ======================================================================================================================

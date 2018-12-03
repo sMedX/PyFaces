@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 from mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
 
+dpifig = 250
 
 # ======================================================================================================================
 class Data:
@@ -66,7 +67,7 @@ class LightConfig:
 
 
 # ======================================================================================================================
-class BaselFaceModeNoMouth2017Dlib:
+class BaselFaceModel2017NoMouthDlib:
     def __init__(self):
         # model and landmark detector
         self._model_file = 'model2017-1_bfm_nomouth.h5'
@@ -82,4 +83,24 @@ class BaselFaceModeNoMouth2017Dlib:
     @property
     def model_file(self):
         return os.path.join(os.path.pardir, 'data', self._model_file)
+
+
+# ======================================================================================================================
+class BaselFaceModel2017Face12Dlib:
+    def __init__(self):
+        # model and landmark detector
+        self._model_file = 'model2017-1_face12_nomouth.h5'
+        self.detector = Dlib()
+
+        # landmark
+        self.landmarks = landmarks.BaselFaceModeNoMouth2017Dlib()
+
+        self.camera = CameraConfig()
+
+        self.light = LightConfig()
+
+    @property
+    def model_file(self):
+        return os.path.join(os.path.pardir, 'data', self._model_file)
+
 

@@ -10,17 +10,18 @@ import config
 inpdir = os.path.join(os.path.pardir, 'data')
 outdir = os.path.join(os.path.pardir, 'output')
 
-scale = 0.5
-number_of_epochs = 50
+width = 300
+number_of_epochs = 3
+iterations = 1000
 
 # ======================================================================================================================
 if __name__ == '__main__':
 
-    config = config.BaselFaceModeNoMouth2017Dlib()
+    config = config.BaselFaceModel2017Face12Dlib()
 
     # read image
-    filename = os.path.join(os.path.pardir, 'data', 'basel_face_example.png')
-    image = imutils.read(filename, scale=scale, show=False)
+    filename = os.path.join(inpdir, 'basel_face_example.png')
+    image = imutils.read(filename, width=width)
 
     # read model face
     filename = config.model_file
@@ -30,29 +31,32 @@ if __name__ == '__main__':
     # initialize model transform
     transform = ModelTransform(model=model,
                                transform=transforms.SimilarityEuler3DTransform(),
-                               bounds=(3, 3, None))
+                               bounds=(1, 1, None))
 
-    # ------------------------------------------------------------------------------------------------------------------
     # model to image landmark based registration
     fit = ModelToImageLandmarkRegistration(image=image,
                                            transform=transform,
                                            detector=config.detector,
                                            camera=config.camera)
     fit.run()
-    filename = os.path.join(outdir, 'landmarks.png')
-    fit.show(show=False, save=filename)
+    fit.report()
+    fit.show(show=False, save='landmarks.png')
 
-    for epoch in range(number_of_epochs):
+    # ------------------------------------------------------------------------------------------------------------------
+    for epoch in range(1, number_of_epochs+1):
         print('---------------------------------------')
         print('epochs {}/{}'.format(epoch, number_of_epochs))
+
+        transform.set_number_of_components((epoch/number_of_epochs, 0, None))
 
         # model to image registration
         fit = ModelToImageColorRegistration(image=image,
                                             transform=transform,
                                             camera=config.camera,
                                             light=config.light,
-                                            iterations=200)
+                                            iterations=iterations)
         fit.run()
+        fit.report()
         filename = os.path.join(outdir, '{:02d}-color.png'.format(epoch))
         fit.show(show=False, save=filename)
 
@@ -61,7 +65,8 @@ if __name__ == '__main__':
                                             transform=transform,
                                             camera=config.camera,
                                             light=config.light,
-                                            iterations=500)
+                                            iterations=iterations)
         fit.run()
+        fit.report()
         filename = os.path.join(outdir, '{:02d}-shape.png'.format(epoch))
         fit.show(show=False, save=filename)

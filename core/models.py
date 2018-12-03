@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 import tensorflow as tf
 from . import transforms
+from . import tfSession
 
 
 # data to represent surface
@@ -24,9 +25,8 @@ class Representer:
     def __repr__(self):
         """Representation of representer"""
         info = (
-            '{}\n'.format(self.__class__.__name__) +
-            'points {}\n'.format(self.points.shape) +
-            'cells {}\n'.format(self.cells.shape)
+            '{} '.format(self.__class__.__name__) +
+            'points {}, cells {}\n'.format(self.points.shape, self.cells.shape)
         )
         return info
 
@@ -120,17 +120,9 @@ class ModelBase:
     def filename(self):
         return self._filename
 
-    def array2tensor(self, array=None):
-        if array is None:
-            array = np.zeros(self.number_of_components)
-        return tf.Variable(array, dtype=tf.float32, name=self.name)
-
     @property
     def number_of_components(self):
-        if self._np_basis is None:
-            return None
-        else:
-            return self._np_basis.shape[1]
+        return self._np_basis.shape[1]
 
 
 # expression model
@@ -140,8 +132,7 @@ class ExpressionModel(ModelBase):
 
     def __repr__(self):
         info = (
-             '{}\n'.format(self.__class__.__name__) +
-             'components {}\n'.format(self._basis.shape)
+             '{} {}\n'.format(self.__class__.__name__, self._basis.shape)
         )
         return info
 
@@ -161,8 +152,7 @@ class ShapeModel(ModelBase):
 
     def __repr__(self):
         info = (
-             '{}\n'.format(self.__class__.__name__) +
-             'components {}\n'.format(self._basis.shape) +
+             '{} {}\n'.format(self.__class__.__name__, self._basis.shape) +
              '{}'.format(self._representer.__repr__()) +
              '{}'.format(self._expression.__repr__())
         )
@@ -192,8 +182,7 @@ class ColorModel(ModelBase):
 
     def __repr__(self):
         info = (
-            '{}\n'.format(self.__class__.__name__) +
-            'components {}\n'.format(self._basis.shape)
+            '{} {}'.format(self.__class__.__name__, self._basis.shape)
         )
         return info
 
@@ -203,6 +192,10 @@ class FaceModel:
         self._shape = ShapeModel(filename=filename)
         self._color = ColorModel(filename=filename)
         self._landmarks = landmarks
+
+        self.number_of_components = (self.shape.number_of_components,
+                                     self.shape.expression.number_of_components,
+                                     self.color.number_of_components)
 
     def __repr__(self):
         """Representation of FaceModel"""
@@ -276,13 +269,15 @@ class ModelTransform:
         self.bounds = bounds
 
         # initialize parameters
-        self.variable_parameters = None
-        self.parameters = None
+        number_of_components = self.model.number_of_components
+        self.np_variable_parameters = [np.zeros(number_of_components[0]),
+                                       np.zeros(number_of_components[1]),
+                                       np.zeros(number_of_components[2])]
 
-        self.variable_parameters = [self.model.shape.array2tensor(),
-                                    self.model.shape.expression.array2tensor(),
-                                    self.model.color.array2tensor()]
-        self.initialize_parameters()
+        # initialize tensor parameters
+        self.variable_parameters = [None, None, None]
+        self.parameters = [None, None, None]
+        self.update(self.np_variable_parameters)
 
     @property
     def model(self):
@@ -292,22 +287,18 @@ class ModelTransform:
     def spatial_transform(self):
         return self._spatial_transform
 
-    def initialize_parameters(self):
-        self.parameters = list()
-
-        for values, bounds in zip(self.variable_parameters, self.bounds):
-            values = transforms.bounds_sigmoid(values, bounds)
-            self.parameters.append(tf.expand_dims(values, axis=0))
+    @property
+    def number_of_used_components(self):
+        return [components.shape[0] for components in self.variable_parameters]
 
     def transform(self):
 
-        # initialize parameters (set bounds and expand dims)
-        self.initialize_parameters()
+        components = self.number_of_used_components
 
-        # transform points
+        # apply shape transform
         points = self.model.shape.mean + \
-                 self.parameters[0] * self.model.shape.std @ self.model.shape.basis + \
-                 self.parameters[1] * self.model.shape.expression.std @ self.model.shape.expression.basis
+                 self.parameters[0] * self.model.shape.std[:components[0]] @ self.model.shape.basis[:components[0], :] + \
+                 self.parameters[1] * self.model.shape.expression.std[:components[1]] @ self.model.shape.expression.basis[:components[1], :]
 
         points = tf.reshape(points, (self.model.shape.representer.number_of_points, 3))
 
@@ -315,8 +306,9 @@ class ModelTransform:
         points = self.spatial_transform.transform(points)
         points = tf.expand_dims(points, 0)
 
+        # apply color transform
         colors = self.model.color.mean + \
-                 self.parameters[2] * self.model.color.std @ self.model.color.basis
+                 self.parameters[2] * self.model.color.std[:components[2]] @ self.model.color.basis[:components[2], :]
         colors = tf.reshape(colors, (1, self.model.shape.representer.number_of_points, 3))
 
         # compute normals
@@ -327,12 +319,15 @@ class ModelTransform:
     def update(self, input):
         # update variable parameters
         if isinstance(input, tf.Session):
-            for i, value in enumerate(self.variable_parameters):
-                self.variable_parameters[i] = tf.Variable(input.run(value), dtype=tf.float32)
+            for i, parameters in enumerate(self.variable_parameters):
+                value = input.run(parameters)
+                self.np_variable_parameters[i][:len(value)] = value
+                self.variable_parameters[i] = tf.Variable(value, dtype=tf.float32)
 
         elif isinstance(input, (list, tuple)):
             for i, value in enumerate(input):
                 if isinstance(value, np.ndarray):
+                    self.np_variable_parameters[i][:len(value)] = value
                     self.variable_parameters[i] = tf.Variable(value, dtype=tf.float32)
                 elif value is not None:
                     raise TypeError('value in the input list must be numpy.ndarray or None')
@@ -340,4 +335,41 @@ class ModelTransform:
             raise TypeError('input must be tf.Session, list, or tuple')
 
         # initialize model parameters (set bounds and expand dims)
-        self.initialize_parameters()
+        self.parameters = list()
+
+        for values, bounds in zip(self.variable_parameters, self.bounds):
+            values = transforms.bounds_sigmoid(values, bounds)
+            self.parameters.append(tf.expand_dims(values, axis=0))
+
+    def set_number_of_components(self, portions):
+
+        components_list = list()
+        for value, portion in zip(self.model.number_of_components, portions):
+            if portion is None:
+                components_list.append(value)
+            else:
+                if portion < 0 or portion > 1:
+                    raise ValueError('input value must be in the range [0, 1]')
+                components_list.append(round(portion*value))
+
+        # shape_components = round(portion * (self.model.shape.number_of_components +
+        #                                     self.model.shape.expression.number_of_components))
+        #
+        # variance = np.sort(np.concatenate((self.model.shape.np_variance,
+        #                                    self.model.shape.expression.np_variance)))[::-1]
+        #
+        # try:
+        #     value_of_variance = variance[shape_components]
+        # except IndexError:
+        #     value_of_variance = variance[-1] - 1
+        #
+        # number_of_components = (np.where(self.model.shape.np_variance > value_of_variance)[0][-1] + 1,
+        #                         np.where(self.model.shape.expression.np_variance > value_of_variance)[0][-1] + 1,
+        #                         round(portion * self.model.number_of_components[2]))
+
+        parameters = list()
+
+        for variable_parameters, components in zip(self.np_variable_parameters, components_list):
+            parameters.append(variable_parameters[:components])
+
+        self.update(parameters)

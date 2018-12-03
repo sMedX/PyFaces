@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
 import time
-from scipy.optimize import minimize
+from scipy.optimize import minimize, OptimizeResult
 from mesh_renderer import camera_utils
 from core import imutils
 from thirdparty import mesh_renderer
@@ -21,19 +21,25 @@ def background(image, background=None):
 
 
 # ======================================================================================================================
-class ModelToImageLandmarkRegistration:
-    def __init__(self, image, transform, detector, camera, lr=0.05, iterations=1000):
+class RegistrationBase:
+    def __init__(self, image, transform, camera, light, lr=None, iterations=1000):
         self.image = image
         self.transform = transform
 
-        self.detector = detector
-
         self.camera = camera
+        self.light = light
+
         self.learning_rate = lr
         self.number_of_iterations = iterations
 
         self.session = None
         self.outputs = None
+        self.render = None
+        self.output_image = None
+
+        self.initial_value = None
+        self.final_value = None
+        self.elapsed_time = None
 
     @property
     def image_height(self):
@@ -42,6 +48,52 @@ class ModelToImageLandmarkRegistration:
     @property
     def image_width(self):
         return self.image.shape[1]
+
+    def image_as_tensor(self):
+        return tf.constant(np.expand_dims(self.image, axis=0), dtype=tf.float32, name='image')
+
+    def show(self, show=True, save=None):
+        imutils.imshowdiff(self.image, self.output_image, show=show, save=save)
+
+    def report(self):
+        print(self.__class__.__name__)
+        print('elapsed time', self.elapsed_time, 'sec')
+        print('statistics of parameters')
+
+        for i, (x, c) in enumerate(zip(self.transform.np_variable_parameters, self.transform.number_of_used_components)):
+            print('{}) min={:.3f}, mean={:.3f}, max={:.3f}, components {}'.
+                  format(i, np.min(x), np.mean(x), np.max(x), c))
+
+        print()
+        print('initial value', self.initial_value)
+        print('final value', self.final_value)
+
+    def _run(self):
+        raise NotImplementedError
+
+    def run(self):
+        print('\n{}: optimization has been started.'.format(self.__class__.__name__))
+
+        start_time = time.time()
+        self._run()
+        self.elapsed_time = time.time() - start_time
+
+        # create output image
+        output = self.session.run(self.render)
+        image = output[0][:, :, :3]
+        mask = output[0][:, :, 3]
+
+        self.output_image = np.zeros([self.image_height, self.image_width, 3])
+
+        for i in range(3):
+            self.output_image[:, :, i] = self.image[:, :, i]*(1 - mask) + image[:, :, i]*mask
+
+
+# ======================================================================================================================
+class ModelToImageLandmarkRegistration(RegistrationBase):
+    def __init__(self, image, transform, detector, camera, light=None, lr=0.01, iterations=5000):
+        super().__init__(image, transform, camera, light, lr=lr, iterations=iterations)
+        self.detector = detector
 
     def detect_landmarks(self, landmark_weights=None):
 
@@ -94,6 +146,13 @@ class ModelToImageLandmarkRegistration:
         return image_coordinates
 
     def run(self):
+        print('\n{}: optimization has been started.'.format(self.__class__.__name__))
+
+        start_time = time.time()
+        self._run()
+        self.elapsed_time = time.time() - start_time
+
+    def _run(self):
         landmark_weights = self.transform.model.landmarks.get_binary_weights()
 
         # detect image landmarks
@@ -112,6 +171,28 @@ class ModelToImageLandmarkRegistration:
         train_step = optimizer.apply_gradients(list(zip(gradients, variables)))
 
         self.session = tfSession()
+        self.initial_value = self.session.run(loss)
+
+        # optimize spatial transform
+        for i in range(self.number_of_iterations):
+            self.outputs = self.session.run((train_step,                                   # 0
+                                             loss,                                         # 1
+                                             self.transform.spatial_transform.parameters,  # 2
+                                             rendered_landmarks                            # 3
+                                             ))
+
+            if i == 0 or (i + 1) % 100 == 0 or (i+1) == self.number_of_iterations:
+                print()
+                print('iteration', i + 1, '(', self.number_of_iterations, '), loss', self.outputs[1])
+                print('parameters', self.outputs[2])
+
+        # optimize spatial transform and model components
+        variables = (self.transform.spatial_transform.variable_parameters,
+                     self.transform.variable_parameters[0],
+                     self.transform.variable_parameters[1])
+
+        gradients, variables = zip(*optimizer.compute_gradients(loss, variables))
+        train_step = optimizer.apply_gradients(list(zip(gradients, variables)))
 
         for i in range(self.number_of_iterations):
             self.outputs = self.session.run((train_step,                                   # 0
@@ -125,96 +206,22 @@ class ModelToImageLandmarkRegistration:
                 print('iteration', i + 1, '(', self.number_of_iterations, '), loss', self.outputs[1])
                 print('parameters', self.outputs[2])
 
+        self.final_value = self.session.run(loss)
         self.transform.spatial_transform.update(self.session)
+        self.transform.update(self.session)
 
     def show(self, show=True, save=None):
         landmarks = self.outputs[3]
 
-        ax = self.detector.show()
+        fig, ax = self.detector.show(show=False)
         ax.scatter(landmarks[:, 0], landmarks[:, 1], c='r', marker='.', s=5)
-
-        if save is not None:
-            plt.savefig(save, dpi=250)
+        imutils.savefig(save=save)
 
         if show is True:
             plt.show()
-
-    def report(self):
-        session = tfSession()
-
-        print(self.__class__.__name__)
-        print(self.transform.spatial_transform)
-        print(session.run(self.transform.spatial_transform.variable_parameters))
-        print(session.run(self.transform.spatial_transform.parameters))
-
-        for parameters in self.transform.parameters:
-            x = session.run(parameters)
-            values = '{:.3f}, mean {:.3f}, {:.3f}'.format(np.min(x), np.mean(x), np.max(x))
-            print('statistics', values)
 
 
 # ======================================================================================================================
-class RegistrationBase:
-    def __init__(self, image, transform, camera, light, lr=None, iterations=1000):
-        self.image = image
-        self.transform = transform
-
-        self.camera = camera
-        self.light = light
-
-        self.learning_rate = lr
-        self.number_of_iterations = iterations
-
-        self.session = None
-        self.outputs = None
-        self.output_image = None
-
-        self.initial_value = None
-        self.value = None
-        self.elapsed_time = None
-
-    @property
-    def image_height(self):
-        return self.image.shape[0]
-
-    @property
-    def image_width(self):
-        return self.image.shape[1]
-
-    def image_as_tensor(self):
-        return tf.constant(np.expand_dims(self.image, axis=0), dtype=tf.float32, name='image')
-
-    def show(self, show=True, save=None):
-        imutils.imshowdiff(self.image, self.output_image, show=False)
-
-        if save is not None:
-            plt.savefig(save, dpi=250)
-
-        if show is True:
-            plt.show()
-
-    def report(self):
-        session = tfSession()
-        print(self.__class__.__name__)
-        print('elapsed time', self.elapsed_time, 'sec')
-
-        for parameters in self.transform.parameters:
-            x = session.run(parameters)
-            values = '{:.3f}, mean {:.3f}, {:.3f}'.format(np.min(x), np.mean(x), np.max(x))
-            print('statistics', values)
-
-        print('initial value', self.initial_value)
-        print('value', self.value)
-
-    def _run(self):
-        raise NotImplementedError
-
-    def run(self):
-        start_time = time.time()
-        self._run()
-        self.elapsed_time = time.time() - start_time
-
-
 class ModelToImageColorRegistration(RegistrationBase):
     def __init__(self, image, transform, camera, light, lr=1, iterations=1000):
         super().__init__(image, transform, camera, light, lr=lr, iterations=iterations)
@@ -224,38 +231,37 @@ class ModelToImageColorRegistration(RegistrationBase):
 
         points, colors, normals = self.transform.transform()
 
-        render = mesh_renderer.initialize(self.camera,
-                                          self.light,
-                                          points/self.camera.scale,
-                                          self.transform.model.shape.representer.cells,
-                                          normals,
-                                          colors,
-                                          self.image_width, self.image_height)
+        self.render = mesh_renderer.initialize(self.camera,
+                                               self.light,
+                                               points/self.camera.scale,
+                                               self.transform.model.shape.representer.cells,
+                                               normals,
+                                               colors,
+                                               self.image_width, self.image_height)
 
         # compute background value
         self.session = tfSession()
-        outputs = self.session.run(render)
-        mask = outputs[0][:, :, 3]
+        output = self.session.run(self.render)
+        mask = output[0][:, :, 3]
         background_value = np.zeros(3)
 
         for i in range(3):
             img = self.image[:, :, i].flatten()
             background_value[i] = np.median(img[np.where(mask.flatten() < 1)])
 
-        rendered_image = background(render, background_value)
-        image_diff = self.image_as_tensor() - rendered_image
+        rendered_image = background(self.render, background_value)
 
         # size = 4
         # image_diff = tf.nn.avg_pool(image_diff, (1, size, size, 1), (1, size, size, 1), 'VALID')
-
-        loss = tf.reduce_mean(tf.abs(image_diff))
+        diff = self.image_as_tensor() - rendered_image
+        loss = tf.reduce_mean(tf.abs(diff))
 
         lambdas_shape, lambdas_expression, lambdas_color = self.transform.variable_parameters
         variables = (self.camera.ambient_color.tensor, lambdas_color)
         gradients, variables = zip(*optimizer.compute_gradients(loss, variables))
         train_step = optimizer.apply_gradients(list(zip(gradients, variables)))
 
-        print('optimization has been started')
+        self.initial_value = self.session.run(loss)
 
         for i in range(self.number_of_iterations):
             self.outputs = self.session.run((train_step,          # 0
@@ -274,21 +280,14 @@ class ModelToImageColorRegistration(RegistrationBase):
                       self.outputs[3].size, '/', np.linalg.norm(self.outputs[3]), ',',
                       self.outputs[4].size, '/', np.linalg.norm(self.outputs[4]), ',',
                       self.outputs[5].size, '/', np.linalg.norm(self.outputs[5]))
-                # print('gradients', np.linalg.norm(self.outputs[6]))
 
-            if i == 0:
-                self.initial_value = self.outputs[1]
-            elif i+1 == self.number_of_iterations:
-                self.value = self.outputs[1]
+        self.final_value = self.session.run(loss)
 
         # update ambient colors
         self.camera.ambient_color.update(self.session)
 
         # update model transform parameters
         self.transform.update(self.session)
-
-        # create output image
-        self.output_image = self.outputs[2][0]
 
 
 # ======================================================================================================================
@@ -300,34 +299,39 @@ class ModelToImageShapeRegistration(RegistrationBase):
 
         points, colors, normals = self.transform.transform()
 
-        render = mesh_renderer.initialize(self.camera,
-                                          self.light,
-                                          points/self.camera.scale,
-                                          self.transform.model.shape.representer.cells,
-                                          normals,
-                                          colors,
-                                          self.image_width, self.image_height)
+        self.render = mesh_renderer.initialize(self.camera,
+                                               self.light,
+                                               points/self.camera.scale,
+                                               self.transform.model.shape.representer.cells,
+                                               normals,
+                                               colors,
+                                               self.image_width, self.image_height)
 
         # compute background value
         self.session = tfSession()
-        outputs = self.session.run(render)
-        mask = outputs[0][:, :, 3]
+        output = self.session.run(self.render)
+        mask = output[0][:, :, 3]
         background_value = np.zeros(3)
 
         for i in range(3):
             img = self.image[:, :, i].flatten()
             background_value[i] = np.median(img[np.where(mask.flatten() < 1)])
 
-        image_diff = self.image_as_tensor() - background(render, background_value)
+        diff = self.image_as_tensor() - background(self.render, background_value)
+        loss = tf.reduce_mean(tf.abs(diff))
 
-        loss = tf.reduce_mean(tf.abs(image_diff))
         self.session = tfSession()
 
-        variables = self.transform.variable_parameters[0]
-        initial_parameters = self.session.run(variables.assign(variables))
+        variables = self.transform.variable_parameters[0:2]
+        initial_parameters = np.concatenate([self.session.run(vars) for vars in variables])
+
+        components = self.transform.number_of_used_components[0]
 
         def metric(x):
-            self.session.run(variables.assign(x))
+            parameters = [x[:components], x[components:]]
+
+            for vars, params in zip(variables, parameters):
+                self.session.run(vars.assign(params))
             value = self.session.run(loss)
             return value
 
@@ -339,10 +343,10 @@ class ModelToImageShapeRegistration(RegistrationBase):
                        options=options)
 
         self.initial_value = metric(initial_parameters)
-        self.value = metric(res.x)
+        self.final_value = metric(res.x)
 
         # update model transform parameters
-        self.transform.update((res.x, None, None))
+        x0 = res.x[:components]
+        x1 = res.x[components:]
 
-        # create output image
-        self.output_image = self.session.run(background(render, background_value))[0]
+        self.transform.update((x0, x1, None))

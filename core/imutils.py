@@ -1,15 +1,13 @@
 __author__ = 'Ruslan N. Kosarev'
 
+import os
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
+from config import dpifig
 
 
 # ======================================================================================================================
-def range_image(image):
-    pass
-
-
 def imshow(input, show=True):
     """
 
@@ -28,12 +26,20 @@ def imshow(input, show=True):
         plt.show()
 
 
-def imshowdiff(img1, img2, show=True):
+# ======================================================================================================================
+def savefig(save=None):
+    if save is not None:
+        plt.savefig(save, dpi=dpifig)
+        print('\nfigure has been saved to the file', os.path.abspath(save))
+
+
+def imshowdiff(img1, img2, show=True, save=None):
     """
 
     :param img1:
     :param img2:
     :param show:
+    :param save:
     :return:
     """
 
@@ -43,29 +49,28 @@ def imshowdiff(img1, img2, show=True):
     axes[1][0].imshow(img1 - img2)
     axes[1][1].imshow(img2 - img1)
 
+    savefig(save=save)
+
     if show is True:
         plt.show()
 
 
 # ======================================================================================================================
-def read(filename, scale=1, show=False):
+def read(filename, width=None):
     """
 
     :param filename:
-    :param scale:
-    :param show:
+    :param width:
     :return:
     """
     image = cv2.imread(filename)
-    height = int(scale*image.shape[0])
-    width = int(scale*image.shape[1])
-    image = cv2.resize(image, dsize=(height, width), interpolation=cv2.INTER_CUBIC)
+
+    if width is not None:
+        height = int(width*image.shape[0]/image.shape[1])
+        image = cv2.resize(image, dsize=(width, height), interpolation=cv2.INTER_CUBIC)
+
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = np.float32(image)/255
-
-    if show is True:
-        plt.imshow(image)
-        plt.show()
 
     return image
 

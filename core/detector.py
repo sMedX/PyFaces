@@ -42,7 +42,7 @@ class Dlib:
 
         return self._points
 
-    def show(self):
+    def show(self, show=True):
         # show the output image with the face detections
         fig, ax = plt.subplots()
         ax.imshow(self.image)
@@ -51,4 +51,7 @@ class Dlib:
         for count, point in enumerate(self.points):
             plt.text(point[0] + 1, point[1] + 1, '{}'.format(count), color='blue', fontsize=7)
 
-        return ax
+        if show is True:
+            plt.show()
+
+        return fig, ax

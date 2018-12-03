@@ -10,17 +10,17 @@ import config
 inpdir = os.path.join(os.path.pardir, 'data')
 outdir = os.path.join(os.path.pardir, 'output')
 
-scale = 0.5
+width = 300
 iterations = 1000
 
 # ======================================================================================================================
 if __name__ == '__main__':
 
-    config = config.BaselFaceModeNoMouth2017Dlib()
+    config = config.BaselFaceModel2017Face12Dlib()
 
     # read image
     filename = os.path.join(inpdir, 'basel_face_example.png')
-    image = imutils.read(filename, scale=scale)
+    image = imutils.read(filename, width=width)
 
     # read model face
     filename = config.model_file
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # initialize model transform
     transform = ModelTransform(model=model,
                                transform=transforms.SimilarityEuler3DTransform(),
-                               bounds=(3, 3, None))
+                               bounds=(2, 2, None))
 
     fit = ModelToImageLandmarkRegistration(image=image,
                                            transform=transform,
