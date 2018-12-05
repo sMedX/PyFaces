@@ -124,7 +124,6 @@ class ModelToImageLandmarkRegistration(RegistrationBase):
                                                          self.camera.fov_y, self.camera.near_clip, self.camera.far_clip)
         transform = tf.matmul(perspective_transform, camera_matrices)
 
-        points = points / self.camera.scale
         points = tf.concat((points, tf.ones([1, points.shape[1], 1], dtype=tf.float32)), axis=2)
 
         clip_space_points = tf.matmul(points, transform, transpose_b=True)
@@ -233,7 +232,7 @@ class ModelToImageColorRegistration(RegistrationBase):
 
         self.render = mesh_renderer.initialize(self.camera,
                                                self.light,
-                                               points/self.camera.scale,
+                                               points,
                                                self.transform.model.shape.representer.cells,
                                                normals,
                                                colors,
@@ -301,7 +300,7 @@ class ModelToImageShapeRegistration(RegistrationBase):
 
         self.render = mesh_renderer.initialize(self.camera,
                                                self.light,
-                                               points/self.camera.scale,
+                                               points,
                                                self.transform.model.shape.representer.cells,
                                                normals,
                                                colors,

@@ -24,28 +24,26 @@ if __name__ == '__main__':
     # model.plot()
 
     # camera position
-    camera_position = np.array([0, 0, 5], dtype=np.float32)
+    camera_position = np.array([[0, 0, 1000]], dtype=np.float32)
     camera_position = tf.Variable(camera_position, name='camera_position')
-    tf.expand_dims(camera_position, axis=0)
-    camera_position = tf.tile(tf.expand_dims(camera_position, axis=0), [1, 1])
 
-    camera_look_at = np.array([0, 0, 0], dtype=np.float32)
+    camera_look_at = np.array([[0, 0, 0]], dtype=np.float32)
     camera_look_at = tf.Variable(camera_look_at, name='camera_look_at')
-    camera_look_at = tf.tile(tf.expand_dims(camera_look_at, axis=0), [1, 1])
 
-    camera_up = np.array([0, 1, 0], dtype=np.float32)
+    camera_up = np.array([[0, 1, 0]], dtype=np.float32)
     camera_up = tf.Variable(camera_up, name='camera_up_direction')
-    camera_up = tf.tile(tf.expand_dims(camera_up, axis=0), [1, 1])
 
     # light positions and light intensities
-    light_positions = np.array([[[0, 0, 50], [0, 0, 50], [0, 0, 50]]], dtype=np.float32)
+    light_positions = np.array([[[0, 0, 1000],
+                                 [0, 0, 1000],
+                                 [0, 0, 1000]]], dtype=np.float32)
     light_positions = tf.Variable(light_positions, name='light_positions')
 
-    fov_y = tf.constant([30.0], dtype=tf.float32)
+    fov_y = tf.constant([20.0], dtype=tf.float32)
     near_clip = tf.constant([0.01], dtype=tf.float32)
-    far_clip = tf.constant([10.0], dtype=tf.float32)
+    far_clip = tf.constant([2000.0], dtype=tf.float32)
 
-    light_intensities = np.ones([1, 3, 3], dtype=np.float32)
+    light_intensities = np.zeros([1, 3, 3], dtype=np.float32)
     light_intensities = tf.Variable(light_intensities, name='light_intensities')
     ambient_color = tf.Variable(np.ones([1, 3]), dtype=tf.float32)
 
@@ -54,7 +52,6 @@ if __name__ == '__main__':
 
     model_transform = ModelTransform(model, transform=spatial_transform)
     points, colors, normals = model_transform.transform()
-    points = points / 100
 
     # initialize renderer
     renderer = mesh_renderer(
@@ -77,11 +74,14 @@ if __name__ == '__main__':
 
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
     output = sess.run([renderer])
 
     # show rendered image
     image = output[0][0, :, :, :3]
+    mask = output[0][0, :, :, 3]
 
+    print('minimal value', np.min(image))
     print('maximal value', np.max(image))
 
     # save image to file
@@ -116,9 +116,10 @@ if __name__ == '__main__':
     y = output[0][:, 1]
 
     # show outputs
-    fig, axes = plt.subplots(1, 2)
-    axes[0].imshow(image/np.max(image))
-    axes[1].imshow(image/np.max(image))
-    axes[1].scatter(x, y, c='r', marker='.', s=5)
+    fig, axes = plt.subplots(1, 3)
+    axes[0].imshow(image)
+    axes[1].imshow(mask)
+    axes[2].imshow(image)
+    axes[2].scatter(x, y, c='r', marker='.', s=5)
     plt.show()
 

@@ -9,6 +9,7 @@ from mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHO
 
 dpifig = 250
 
+
 # ======================================================================================================================
 class Data:
     def __init__(self):
@@ -38,7 +39,7 @@ class AmbientColor:
 class CameraConfig:
     def __init__(self):
         # camera position
-        position = np.array([[0, 0, 5]], dtype=np.float32)
+        position = np.array([[0, 0, 1000]], dtype=np.float32)
         self.position = tf.Variable(position, name='camera_position')
 
         look_at = np.array([[0, 0, 0]], dtype=np.float32)
@@ -50,16 +51,17 @@ class CameraConfig:
         self.ambient_color = AmbientColor()
 
         self.fov_y = tf.constant([30.0], dtype=tf.float32)
-        self.near_clip = tf.constant([0.01], dtype=tf.float32)
-        self.far_clip = tf.constant([10.0], dtype=tf.float32)
+        self.near_clip = tf.constant([0.1], dtype=tf.float32)
+        self.far_clip = tf.constant([2000], dtype=tf.float32)
 
         self.divide_threshold = divide_threshold
-        self.scale = 100
 
 
 class LightConfig:
     def __init__(self):
-        positions = np.array([[[0, 0, 50], [0, 0, 50], [0, 0, 50]]], dtype=np.float32)
+        positions = np.array([[[0, 0, 1000],
+                               [0, 0, 1000],
+                               [0, 0, 1000]]], dtype=np.float32)
         self.positions = tf.Variable(positions, name='light_positions')
 
         intensities = np.zeros([1, 3, 3], dtype=np.float32)
