@@ -11,7 +11,7 @@ inpdir = os.path.join(os.path.pardir, 'data')
 outdir = os.path.join(os.path.pardir, 'output')
 
 width = 300
-number_of_epochs = 10
+number_of_epochs = 3
 iterations = 1000
 
 # ======================================================================================================================
