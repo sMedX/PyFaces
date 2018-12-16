@@ -32,7 +32,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
 import logging
-from pywavefront import ObjParser
+from . import ObjParser
 
 logger = logging.getLogger("pywavefront")
 

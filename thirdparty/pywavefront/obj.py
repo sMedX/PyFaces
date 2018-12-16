@@ -36,11 +36,11 @@ import logging
 import os
 import time
 
-from pywavefront.exceptions import PywavefrontException
-from pywavefront.parser import Parser, auto_consume
-from pywavefront.material import Material, MaterialParser
-from pywavefront.mesh import Mesh
-from pywavefront.cache import Meta, CacheWriter, CacheLoader
+from .exceptions import PywavefrontException
+from .parser import Parser, auto_consume
+from .material import Material, MaterialParser
+from .mesh import Mesh
+from .cache import Meta, CacheWriter, CacheLoader
 
 logger = logging.getLogger("pywavefront")
 

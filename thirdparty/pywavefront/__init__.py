@@ -33,9 +33,9 @@
 # ----------------------------------------------------------------------------
 import logging
 
-from pywavefront.exceptions import PywavefrontException
-from pywavefront.obj import ObjParser
-from pywavefront.wavefront import Wavefront
+from .exceptions import PywavefrontException
+from .obj import ObjParser
+from .wavefront import Wavefront
 
 logger = logging.getLogger("pywavefront")
 log_handler = logging.StreamHandler()

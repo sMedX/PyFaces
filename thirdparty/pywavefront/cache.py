@@ -41,7 +41,7 @@ import os
 import struct
 from datetime import datetime
 
-from pywavefront.material import Material, MaterialParser
+from .material import Material, MaterialParser
 
 logger = logging.getLogger("pywavefront")
 

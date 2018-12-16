@@ -34,8 +34,8 @@
 import logging
 import os
 
-from pywavefront.parser import Parser, auto_consume
-from pywavefront.texture import Texture
+from .parser import Parser, auto_consume
+from .texture import Texture
 
 logger = logging.getLogger("pywavefront")
 

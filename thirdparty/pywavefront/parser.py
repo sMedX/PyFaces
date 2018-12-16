@@ -37,7 +37,7 @@ import logging
 import os
 import sys
 
-from pywavefront.exceptions import PywavefrontException
+from .exceptions import PywavefrontException
 
 logger = logging.getLogger("pywavefront")
 
