@@ -31,6 +31,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ----------------------------------------------------------------------------
+import numpy as np
 import logging
 from . import ObjParser
 
@@ -84,3 +85,20 @@ class Wavefront(object):
     def add_mesh(self, the_mesh):
         self.mesh_list.append(the_mesh)
         self.meshes[the_mesh.name] = the_mesh
+
+    @property
+    def points(self):
+        return np.array(self.vertices)[:, :3]
+
+    @property
+    def colors(self):
+        return np.array(self.vertices)[:, 3:]
+
+    @property
+    def faces(self):
+        faces = np.array(self.mesh_list[0].faces)
+        return faces
+
+    @property
+    def normals(self):
+        return np.array(self.parser.normals)
