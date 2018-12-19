@@ -174,6 +174,11 @@ class ShapeModel(ModelBase):
     def center(self):
         return self._center
 
+    @property
+    def points(self):
+        shape = (self.representer.number_of_points, self.representer.dimension)
+        return np.reshape(self.np_mean, shape)
+
 
 # color model
 class ColorModel(ModelBase):
@@ -185,6 +190,11 @@ class ColorModel(ModelBase):
             '{} {}'.format(self.__class__.__name__, self._basis.shape)
         )
         return info
+
+    @property
+    def colors(self):
+        shape = (int(len(self.np_mean)/3), 3)
+        return np.reshape(self.np_mean, shape)
 
 
 class FaceModel:
@@ -205,6 +215,10 @@ class FaceModel:
              '{}'.format(self._color.__repr__())
         )
         return info
+
+    @property
+    def number_of_points(self):
+        return self.shape.representer.number_of_points
 
     @property
     def landmarks(self):

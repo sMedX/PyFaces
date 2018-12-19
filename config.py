@@ -50,7 +50,7 @@ class CameraConfig:
 
         self.ambient_color = AmbientColor()
 
-        self.fov_y = tf.constant([30.0], dtype=tf.float32)
+        self.fov_y = tf.constant([15.0], dtype=tf.float32)
         self.near_clip = tf.constant([0.1], dtype=tf.float32)
         self.far_clip = tf.constant([2000], dtype=tf.float32)
 
