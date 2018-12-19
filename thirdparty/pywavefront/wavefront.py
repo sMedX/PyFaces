@@ -49,7 +49,7 @@ class Wavefront(object):
         strict=False,
         encoding="utf-8",
         create_materials=False,
-        collect_faces=False,
+        collect_faces=True,
         parse=True,
         cache=False
     ):
@@ -78,6 +78,8 @@ class Wavefront(object):
             parse=parse,
             cache=cache)
 
+        self.faces = np.array(self.mesh_list[0].faces)
+
     def parse(self):
         """Manually call the parser. This is used when parse=False"""
         self.parser.parse()
@@ -95,10 +97,13 @@ class Wavefront(object):
         return np.array(self.vertices)[:, 3:]
 
     @property
-    def faces(self):
-        faces = np.array(self.mesh_list[0].faces)
-        return faces
-
-    @property
     def normals(self):
         return np.array(self.parser.normals)
+
+    @property
+    def number_of_points(self):
+        return self.points.shape[0]
+
+    @property
+    def number_of_faces(self):
+        return self.faces.shape[0]
