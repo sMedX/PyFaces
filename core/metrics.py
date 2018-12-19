@@ -1,126 +1,54 @@
 __author__ = 'Ruslan N. Kosarev'
 
+from scipy.spatial.kdtree import KDTree
 import numpy as np
+import time
+# from numba import jit
 
 
-# metric
-class ModelMetricBase:
-    def __init__(self):
-        self._fixed_points = None
-        self._transform = None
-        self._model = None
+# point set metrics
+class MovingToFixedPointSetMetrics:
+    def __init__(self, moving, fixed):
+        self.moving_points = moving
+        self.fixed_points = fixed
+        self.rmsd = None
+        self.mean = None
+        self.elapsed_time = None
+
+        # compute metrics
+        self._compute()
 
     def __repr__(self):
         """Representation of metric"""
-        info = (
-            'Metric {}'.format(self.__class__.__name__)
+        return (
+            '{}\n'.format(self.__class__.__name__) +
+            'mean {:.3f}\n'.format(self.mean) +
+            ' rms {:.3f}\n'.format(self.rmsd) +
+            'elapsed time {:.3f}\n'.format(self.elapsed_time)
         )
-        return info
 
     @property
-    def fixed_points(self):
-        return self._fixed_points
+    def number_of_moving_points(self):
+        return self.moving_points.shape[0]
 
     @property
     def number_of_fixed_points(self):
-        return self.fixed_points.shape[1]
+        return self.fixed_points.shape[0]
 
-    @fixed_points.setter
-    def fixed_points(self, points):
-        self._fixed_points = points
+    def _compute(self):
+        start_time = time.time()
 
-    # moving points
-    @property
-    def model(self):
-        return self._model
+        tree = KDTree(self.fixed_points)
 
-    @model.setter
-    def model(self, model):
-        self._model = model
+        self.mean = 0
+        self.rmsd = 0
 
-    # transform
-    @property
-    def transform(self):
-        return self._transform
+        for point in self.moving_points:
+            dist, index = tree.query(point)
+            self.mean += dist
+            self.rmsd += pow(dist, 2)
 
-    @transform.setter
-    def transform(self, transform):
-        self._transform = transform
+        self.mean = self.mean/self.number_of_moving_points
+        self.rmsd = np.sqrt(self.rmsd/self.number_of_moving_points)
 
-    @property
-    def number_of_parameters(self):
-        return self.model.number_of_parameters + self.transform.number_of_parameters
-
-    def value(self, parameters):
-        raise NotImplementedError
-
-    def jacobian(self, parameters):
-        raise NotImplementedError
-
-    def hessian(self, parameters):
-        raise NotImplementedError
-
-
-class LandmarksShapeModelMetric(ModelMetricBase):
-    def __init__(self):
-        super().__init__()
-
-    def value(self, parameters):
-        """
-        compute value
-        :param parameters:
-        :return: value
-        """
-
-        # transform landmarks
-        points = self.model.transform_landmarks(parameters)
-
-        # apply spatial transform to landmarks
-        self.transform.parameters = parameters[self.model.number_of_parameters:]
-        points = self.transform.transform_points(points, [self.model.number_of_landmarks, self.model.representer.dimension])
-
-        # compute and return metric value
-        value = np.sum(pow(self._fixed_points - points, 2))/self.model.number_of_landmarks
-
-        return value
-
-    def jacobian(self, parameters):
-        """
-        compute jacobian
-        :return: jacobian
-        """
-
-        # apply model transform to points
-        model_transformed_points = self.model.transform_landmarks(parameters)
-
-        shape = [self.model.number_of_landmarks, self.model.representer.dimension]
-        model_transformed_points = model_transformed_points.reshape(shape)
-
-        # apply spatial transform to points
-        self.transform.parameters = parameters[self.model.number_of_parameters:]
-        transformed_points = self.transform.transform_points(model_transformed_points)
-
-        model_derivatives = np.zeros(self.model.number_of_parameters)
-        spatial_derivatives = np.zeros(self.transform.number_of_parameters)
-
-        for index, model_transformed_point, transformed_point, fixed_point in zip(self.model.landmarks_indexes,
-                                                                                  model_transformed_points,
-                                                                                  transformed_points,
-                                                                                  self.fixed_points):
-
-            difference = transformed_point - fixed_point
-
-            # compute derivatives with respect to model parameters
-            jacobian = self.transform.compute_jacobian_with_respect_to_position(model_transformed_point) @ self.model.jacobian(index)
-            model_derivatives = model_derivatives + jacobian.T @ difference
-
-            # compute derivatives with respect to spatial transform parameters
-            jacobian = self.transform.compute_jacobian_with_respect_to_parameters(model_transformed_point)
-            spatial_derivatives = spatial_derivatives + jacobian.T @ difference
-
-        derivatives = 2*np.concatenate((model_derivatives, spatial_derivatives)) / self.model.number_of_landmarks
-
-        return derivatives
-
-    def initial_position(self):
-        pass
+        self.elapsed_time = time.time() - start_time

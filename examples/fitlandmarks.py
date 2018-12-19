@@ -19,9 +19,9 @@ if __name__ == '__main__':
     config = config.BaselFaceModel2017Face12Dlib()
 
     # read image
-    # filename = os.path.join(inpdir, 'basel_face_example.png')
+    filename = os.path.join(inpdir, 'basel_face_example.png')
+    # filename = os.path.join(inpdir, 'example_02.jpg')
     # filename = os.path.join(inpdir, 'example_01.jpg')
-    filename = os.path.join(inpdir, 'example_02.jpg')
     image = imutils.read(filename, width=width)
 
     # read model face
