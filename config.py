@@ -5,7 +5,7 @@ from core.detector import Dlib
 from core import landmarks
 import numpy as np
 import tensorflow as tf
-from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
+from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimum_perspective_threshold as divide_threshold
 
 dpifig = 250
 

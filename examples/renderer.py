@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from thirdparty.tf_mesh_renderer.mesh_renderer.mesh_renderer import mesh_renderer
 from thirdparty.tf_mesh_renderer.mesh_renderer import camera_utils
-from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
+from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimum_perspective_threshold
 from core.models import FaceModel, ModelTransform
 import cv2
 from core import transforms
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     points = tf.concat((points, tf.ones([1, points.shape[1], 1], dtype=tf.float32)), axis=2)
 
     clip_space_points = tf.matmul(points, transform, transpose_b=True)
-    clip_space_points_w = tf.maximum(tf.abs(clip_space_points[:, :, 3:4]), divide_threshold) * tf.sign(clip_space_points[:, :, 3:4])
+    clip_space_points_w = tf.maximum(tf.abs(clip_space_points[:, :, 3:4]), minimum_perspective_threshold) * tf.sign(clip_space_points[:, :, 3:4])
 
     normalized_device_coordinates = clip_space_points[:, :, 0:3] / clip_space_points_w
 

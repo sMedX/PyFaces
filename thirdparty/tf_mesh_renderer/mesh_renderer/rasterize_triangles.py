@@ -36,14 +36,14 @@ rasterize_triangles_module = tf.load_op_library(module_path)
 # because the reweighting factor will be 0 for factors outside the mesh, and we
 # need to ensure the image color and gradient outside the region of the mesh are
 # 0.
-MINIMUM_REWEIGHTING_THRESHOLD = 1e-6
+minimum_reweighting_threshold = 1e-6
 
 # This epsilon is the minimum absolute value of a homogenous coordinate before
 # it is clipped. It should be sufficiently large such that the output of
 # the perspective divide step with this denominator still has good working
 # precision with 32 bit arithmetic, and sufficiently small so that in practice
 # vertices are almost never close enough to a clipping plane to be thresholded.
-MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD = 1e-6
+minimum_perspective_threshold = 1e-6
 
 
 def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
@@ -104,7 +104,7 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
   # the possibility of NaNs:
   clip_space_points_w = tf.maximum(
       tf.abs(clip_space_points[:, :, 3:4]),
-      MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD) * tf.sign(
+      minimum_perspective_threshold) * tf.sign(
           clip_space_points[:, :, 3:4])
   normalized_device_coordinates = (
       clip_space_points[:, :, 0:3] / clip_space_points_w)
@@ -157,7 +157,7 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
       weighted_barycentric_coordinates,
       tf.expand_dims(
           tf.maximum(barycentric_reweighting_factor,
-                     MINIMUM_REWEIGHTING_THRESHOLD),
+                     minimum_reweighting_threshold),
           axis=1))
 
   # Computes the pixel attributes by interpolating the known attributes at the
