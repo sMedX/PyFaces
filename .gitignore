@@ -71,3 +71,7 @@ target/
 # Something data
 data/
 output/
+
+# Virtual environment
+venv/
+
