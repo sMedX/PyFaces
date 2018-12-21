@@ -75,3 +75,17 @@ output/
 # Virtual environment
 venv/
 
+# Third parties
+thirdparty/tf_mesh_renderer/bazel-bin
+thirdparty/tf_mesh_renderer/bazel-genfiles
+thirdparty/tf_mesh_renderer/bazel-out
+thirdparty/tf_mesh_renderer/bazel-testlogs
+thirdparty/tf_mesh_renderer/bazel-tf_mesh_renderer
+thirdparty/tf_mesh_renderer/CONTRIBUTING.md
+thirdparty/tf_mesh_renderer/LICENSE
+thirdparty/tf_mesh_renderer/README.md
+thirdparty/tf_mesh_renderer/WORKSPACE
+
+
+
+
