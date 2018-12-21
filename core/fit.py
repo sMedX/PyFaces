@@ -7,7 +7,7 @@ import time
 from scipy.optimize import minimize, OptimizeResult
 from thirdparty.tf_mesh_renderer.mesh_renderer import camera_utils
 from core import imutils
-from thirdparty import mesh_renderer
+from thirdparty.tf_mesh_renderer import mesh_renderer
 from . import tfSession
 
 
