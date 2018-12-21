@@ -1,6 +1,6 @@
 __author__ = 'Ruslan N. Kosarev'
 
-from mesh_renderer.mesh_renderer import mesh_renderer
+from thirdparty.tf_mesh_renderer.mesh_renderer.mesh_renderer import mesh_renderer
 
 
 def initialize(camera, light, points, cells, normals, colors, width, height):

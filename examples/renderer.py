@@ -4,10 +4,9 @@ import os
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-
-from mesh_renderer.mesh_renderer import mesh_renderer
-from mesh_renderer import camera_utils
-from mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
+from thirdparty.tf_mesh_renderer.mesh_renderer.mesh_renderer import mesh_renderer
+from thirdparty.tf_mesh_renderer.mesh_renderer import camera_utils
+from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
 from core.models import FaceModel, ModelTransform
 import cv2
 from core import transforms
