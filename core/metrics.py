@@ -1,6 +1,6 @@
 __author__ = 'Ruslan N. Kosarev'
 
-from scipy.spatial.kdtree import KDTree
+from scipy.spatial import cKDTree as KDTree
 import numpy as np
 import time
 # from numba import jit
