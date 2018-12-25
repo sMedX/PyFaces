@@ -11,10 +11,12 @@ dpifig = 250
 
 
 # ======================================================================================================================
-class Data:
-    def __init__(self):
-        self.inpdir = os.path.abspath('data')
-        self.outdir = os.path.abspath('output')
+# directories and files
+inpdir = os.path.join(os.path.pardir, 'data')
+outdir = os.path.join(os.path.pardir, 'output')
+
+bfm2017nomouth = os.path.join(inpdir, 'model2017-1_bfm_nomouth.h5')
+bfm2017face12nomouth = os.path.join(inpdir, 'model2017-1_face12_nomouth.h5')
 
 
 # ======================================================================================================================

@@ -199,6 +199,8 @@ class ColorModel(ModelBase):
 
 class FaceModel:
     def __init__(self, filename, landmarks=None):
+        self.filename = filename
+
         self._shape = ShapeModel(filename=filename)
         self._color = ColorModel(filename=filename)
         self._landmarks = landmarks
