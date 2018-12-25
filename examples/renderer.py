@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 from thirdparty.tf_mesh_renderer.mesh_renderer.mesh_renderer import mesh_renderer
 from thirdparty.tf_mesh_renderer.mesh_renderer import camera_utils
 from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimum_perspective_threshold
-from core.models import FaceModel, ModelTransform
+from tffaces.models import FaceModel, ModelTransform
 import cv2
-from core import transforms
+from tffaces import transforms
 
 height = 512
 width = 512

@@ -1,10 +1,10 @@
 __author__ = 'Ruslan N. Kosarev'
 
 import os
-from core.models import FaceModel, ModelTransform
-from core.fit import ModelToImageLandmarkRegistration, ModelToImageColorRegistration
-from core import transforms
-from core import imutils
+from tffaces.models import FaceModel, ModelTransform
+from tffaces.fit import ModelToImageLandmarkRegistration, ModelToImageColorRegistration
+from tffaces import transforms
+from tffaces import imutils
 import config
 
 inpdir = os.path.join(os.path.pardir, 'data')

@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from mesh_renderer.mesh_renderer import mesh_renderer
 from mesh_renderer import camera_utils
 from mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
-from core.models import FaceModel, ModelTransform
-from core import transforms
-from core import imutils
-from core.improcessing import background
+from tffaces.models import FaceModel, ModelTransform
+from tffaces import transforms
+from tffaces import imutils
+from tffaces.improcessing import background
 
 inpdir = os.path.join(os.path.pardir, 'data')
 outdir = os.path.join(os.path.pardir, 'output')

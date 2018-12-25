@@ -2,8 +2,8 @@ __author__ = 'Ruslan N. Kosarev'
 
 import os
 from thirdparty import pywavefront as pw
-from core.metrics import MovingToFixedPointSetMetrics
-from core.models import FaceModel
+from tffaces.metrics import MovingToFixedPointSetMetrics
+from tffaces.models import FaceModel
 import config
 
 inpdir = os.path.join(os.path.pardir, 'data')
