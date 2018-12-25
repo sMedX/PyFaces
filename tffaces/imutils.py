@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-from config import dpifig
+from examples.config import dpifig
 
 
 # ======================================================================================================================

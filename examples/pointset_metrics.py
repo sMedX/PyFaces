@@ -4,7 +4,7 @@ import os
 from thirdparty import pywavefront as pw
 from tffaces.metrics import MovingToFixedPointSetMetrics
 from tffaces.models import FaceModel
-import config
+from examples import config
 
 inpdir = os.path.join(os.path.pardir, 'data')
 outdir = os.path.join(os.path.pardir, 'output')

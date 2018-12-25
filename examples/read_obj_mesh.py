@@ -7,7 +7,7 @@ import tensorflow as tf
 import cv2
 from thirdparty import pywavefront as pw
 from thirdparty import mesh_renderer
-import config
+from examples import config
 
 image_height = 256
 image_width = 256

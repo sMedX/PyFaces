@@ -5,7 +5,7 @@ from tffaces import transforms
 from tffaces.models import FaceModel, ModelTransform
 from tffaces import imutils
 from tffaces.fit import ModelToImageLandmarkRegistration, ModelToImageColorRegistration, ModelToImageShapeRegistration
-import config
+from examples import config
 
 inpdir = os.path.join(os.path.pardir, 'data')
 outdir = os.path.join(os.path.pardir, 'output')
