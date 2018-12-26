@@ -10,7 +10,7 @@ from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimu
 from tffaces.models import FaceModel, ModelTransform
 import cv2
 from tffaces import transforms
-from examples import dirs
+from examples import models, dirs
 
 height = 512
 width = 512
@@ -19,8 +19,7 @@ width = 512
 if __name__ == '__main__':
 
     # initialize face model
-    filename = os.path.join(dirs.inpdir, 'model2017-1_bfm_nomouth.h5')
-    model = FaceModel(filename=filename)
+    model = FaceModel(filename=models.bfm2017nomouth)
     # model.plot()
 
     # camera position
