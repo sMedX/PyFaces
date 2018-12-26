@@ -10,7 +10,7 @@ from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimu
 from tffaces.models import FaceModel, ModelTransform
 import cv2
 from tffaces import transforms
-from examples import models, dirs
+from examples import models, joininpdir, joinoutdir
 
 height = 512
 width = 512
@@ -84,9 +84,8 @@ if __name__ == '__main__':
     print('maximal value', np.max(image))
 
     # save image to file
-    image_file = 'rendered_image.png'
-    image_file = os.path.join(dirs.outdir, image_file)
-    cv2.imwrite(image_file, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
+    filename = joinoutdir('rendered_image.png')
+    cv2.imwrite(filename, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
 
     # transform model points to image
     camera_matrices = camera_utils.look_at(camera_position, camera_look_at, camera_up)

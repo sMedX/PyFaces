@@ -5,13 +5,13 @@ import numpy as np
 from plyfile import PlyData, PlyElement
 from tffaces.models import FaceModel
 import itertools
-import examples
+from examples import models, joinoutdir
 
 # ======================================================================================================================
 if __name__ == '__main__':
 
     # read model face
-    model = FaceModel(filename=examples.models.bfm2017face12nomouth)
+    model = FaceModel(filename=models.bfm2017face12nomouth)
     points = model.shape.points
     colors = model.color.colors
     print(model)
@@ -28,6 +28,5 @@ if __name__ == '__main__':
     faces = PlyElement.describe(faces, 'face')
 
     # write output ply file
-    filename = 'mean_face.ply'
-    filename = os.path.join(examples.dirs.outdir, os.path.basename(filename))
+    filename = joinoutdir('mean_face.ply')
     PlyData((vertexes, faces), text=True).write(filename)
