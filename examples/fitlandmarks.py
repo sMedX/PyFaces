@@ -5,10 +5,7 @@ from tffaces import transforms
 from tffaces.models import FaceModel, ModelTransform
 from tffaces import imutils
 from tffaces.fit import ModelToImageLandmarkRegistration
-from examples import config
-
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
+from examples import dirs, config
 
 width = 500
 iterations = 1000
@@ -19,9 +16,9 @@ if __name__ == '__main__':
     config = config.BaselFaceModel2017Face12Dlib()
 
     # read image
-    filename = os.path.join(inpdir, 'basel_face_example.png')
-    # filename = os.path.join(inpdir, 'example_02.jpg')
-    # filename = os.path.join(inpdir, 'example_01.jpg')
+    filename = os.path.join(dirs.inpdir, 'basel_face_example.png')
+    # filename = os.path.join(dirs.inpdir, 'example_02.jpg')
+    # filename = os.path.join(dirs.inpdir, 'example_01.jpg')
     image = imutils.read(filename, width=width)
 
     # read model face

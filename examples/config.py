@@ -1,22 +1,12 @@
 __author__ = 'Ruslan N. Kosarev'
 
 import os
+from examples import models, dirs
 from tffaces.detector import Dlib
 from tffaces import landmarks
 import numpy as np
 import tensorflow as tf
 from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimum_perspective_threshold as divide_threshold
-
-dpifig = 250
-
-
-# ======================================================================================================================
-# directories and files
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
-
-bfm2017nomouth = os.path.join(inpdir, 'model2017-1_bfm_nomouth.h5')
-bfm2017face12nomouth = os.path.join(inpdir, 'model2017-1_face12_nomouth.h5')
 
 
 # ======================================================================================================================
@@ -74,7 +64,7 @@ class LightConfig:
 class BaselFaceModel2017NoMouthDlib:
     def __init__(self):
         # model and landmark detector
-        self._model_file = 'model2017-1_bfm_nomouth.h5'
+        self._model_file = models.bfm2017nomouth
         self.detector = Dlib()
 
         # landmark
@@ -86,14 +76,14 @@ class BaselFaceModel2017NoMouthDlib:
 
     @property
     def model_file(self):
-        return os.path.join(os.path.pardir, 'data', self._model_file)
+        return self._model_file
 
 
 # ======================================================================================================================
 class BaselFaceModel2017Face12Dlib:
     def __init__(self):
         # model and landmark detector
-        self._model_file = 'model2017-1_face12_nomouth.h5'
+        self._model_file = models.bfm2017face12nomouth
         self.detector = Dlib()
 
         # landmark
@@ -105,6 +95,6 @@ class BaselFaceModel2017Face12Dlib:
 
     @property
     def model_file(self):
-        return os.path.join(os.path.pardir, 'data', self._model_file)
+        return self._model_file
 
 

@@ -53,7 +53,7 @@ class RegistrationBase:
         return tf.constant(np.expand_dims(self.image, axis=0), dtype=tf.float32, name='image')
 
     def show(self, show=True, save=None):
-        imutils.imshowdiff(self.image, self.output_image, show=show, save=save)
+        imutils.imshowdiff(self.image, self.output_image, show=show, file=save)
 
     def report(self):
         print(self.__class__.__name__)
@@ -214,7 +214,7 @@ class ModelToImageLandmarkRegistration(RegistrationBase):
 
         fig, ax = self.detector.show(show=False)
         ax.scatter(landmarks[:, 0], landmarks[:, 1], c='r', marker='.', s=5)
-        imutils.savefig(save=save)
+        imutils.savefig(file=save)
 
         if show is True:
             plt.show()

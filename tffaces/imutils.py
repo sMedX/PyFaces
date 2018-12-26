@@ -4,7 +4,8 @@ import os
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-from examples.config import dpifig
+
+dpifig = 250
 
 
 # ======================================================================================================================
@@ -27,19 +28,19 @@ def imshow(input, show=True):
 
 
 # ======================================================================================================================
-def savefig(save=None):
-    if save is not None:
-        plt.savefig(save, dpi=dpifig)
-        print('\nfigure has been saved to the file', os.path.abspath(save))
+def savefig(file=None, dpi=dpifig):
+    if file is not None:
+        plt.savefig(file, dpi=dpi)
+        print('\nfigure has been saved to the file', os.path.abspath(file))
 
 
-def imshowdiff(img1, img2, show=True, save=None):
+def imshowdiff(img1, img2, show=True, file=None):
     """
 
     :param img1:
     :param img2:
     :param show:
-    :param save:
+    :param file:
     :return:
     """
 
@@ -49,7 +50,7 @@ def imshowdiff(img1, img2, show=True, save=None):
     axes[1][0].imshow(img1 - img2)
     axes[1][1].imshow(img2 - img1)
 
-    savefig(save=save)
+    savefig(file=file)
 
     if show is True:
         plt.show()

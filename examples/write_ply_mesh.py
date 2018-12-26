@@ -3,15 +3,15 @@ __author__ = 'Ruslan N. Kosarev'
 import os
 import numpy as np
 from plyfile import PlyData, PlyElement
-from examples import config
 from tffaces.models import FaceModel
 import itertools
+import examples
 
 # ======================================================================================================================
 if __name__ == '__main__':
 
     # read model face
-    model = FaceModel(filename=config.bfm2017face12nomouth)
+    model = FaceModel(filename=examples.models.bfm2017face12nomouth)
     points = model.shape.points
     colors = model.color.colors
     print(model)
@@ -29,5 +29,5 @@ if __name__ == '__main__':
 
     # write output ply file
     filename = 'mean_face.ply'
-    filename = os.path.join(config.outdir, os.path.basename(filename))
+    filename = os.path.join(examples.dirs.outdir, os.path.basename(filename))
     PlyData((vertexes, faces), text=True).write(filename)

@@ -3,18 +3,13 @@ __author__ = 'Ruslan N. Kosarev'
 import os
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 
-from mesh_renderer.mesh_renderer import mesh_renderer
-from mesh_renderer import camera_utils
-from mesh_renderer.rasterize_triangles import MINIMUM_PERSPECTIVE_DIVIDE_THRESHOLD as divide_threshold
+from thirdparty.tf_mesh_renderer.mesh_renderer import mesh_renderer
 from tffaces.models import FaceModel, ModelTransform
 from tffaces import transforms
 from tffaces import imutils
 from tffaces.improcessing import background
-
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
+from examples import models, dirs
 
 height = 512
 width = 512
@@ -23,11 +18,11 @@ width = 512
 if __name__ == '__main__':
 
     # read image
-    filename = os.path.join(inpdir, 'basel_face_example.png')
+    filename = os.path.join(dirs.inpdir, 'basel_face_example.png')
     image = imutils.read(filename, width=width)
 
     # initialize face model
-    filename = os.path.join(os.path.pardir, 'data', 'model2017-1_bfm_nomouth.h5')
+    filename = models.bfm2017face12nomouth
     model = FaceModel(filename=filename)
     # model.plot()
 

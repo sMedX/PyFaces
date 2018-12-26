@@ -5,10 +5,7 @@ from tffaces import transforms
 from tffaces.models import FaceModel, ModelTransform
 from tffaces import imutils
 from tffaces.fit import ModelToImageLandmarkRegistration, ModelToImageColorRegistration, ModelToImageShapeRegistration
-from examples import config
-
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
+from examples import dirs, config
 
 width = 300
 number_of_epochs = 3
@@ -20,7 +17,7 @@ if __name__ == '__main__':
     config = config.BaselFaceModel2017Face12Dlib()
 
     # read image
-    filename = os.path.join(inpdir, 'basel_face_example.png')
+    filename = os.path.join(dirs.inpdir, 'basel_face_example.png')
     image = imutils.read(filename, width=width)
 
     # read model face
@@ -57,7 +54,7 @@ if __name__ == '__main__':
                                             iterations=iterations)
         fit.run()
         fit.report()
-        filename = os.path.join(outdir, '{:02d}-color.png'.format(epoch))
+        filename = os.path.join(dirs.outdir, '{:02d}-color.png'.format(epoch))
         fit.show(show=False, save=filename)
 
         # model to image registration
@@ -68,5 +65,5 @@ if __name__ == '__main__':
                                             iterations=iterations)
         fit.run()
         fit.report()
-        filename = os.path.join(outdir, '{:02d}-shape.png'.format(epoch))
+        filename = os.path.join(dirs.outdir, '{:02d}-shape.png'.format(epoch))
         fit.show(show=False, save=filename)

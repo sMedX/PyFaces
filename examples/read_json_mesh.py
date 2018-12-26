@@ -4,21 +4,19 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from mesh_renderer.mesh_renderer import mesh_renderer
+from thirdparty.tf_mesh_renderer.mesh_renderer import mesh_renderer
 import cv2
 import json
+from examples import dirs
 
 height = 512
 width = 512
-
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
 
 # ======================================================================================================================
 if __name__ == '__main__':
 
     # read json file
-    filename = os.path.join(inpdir, 'subject_01/Model/frontal1/obj/110920150452_new.json')
+    filename = os.path.join(dirs.inpdir, 'subject_01/Model/frontal1/obj/110920150452_new.json')
     with open(filename) as f:
         data = json.load(f)
 
@@ -112,7 +110,7 @@ if __name__ == '__main__':
 
     # save image to file
     filename = os.path.splitext(os.path.basename(filename))[0] + '.png'
-    filename = os.path.join(outdir, filename)
+    filename = os.path.join(dirs.outdir, filename)
     cv2.imwrite(filename, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
 
     # show outputs

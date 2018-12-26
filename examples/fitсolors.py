@@ -5,10 +5,7 @@ from tffaces.models import FaceModel, ModelTransform
 from tffaces.fit import ModelToImageLandmarkRegistration, ModelToImageColorRegistration
 from tffaces import transforms
 from tffaces import imutils
-from examples import config
-
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
+from examples import dirs, config
 
 width = 300
 iterations = 1000
@@ -19,7 +16,7 @@ if __name__ == '__main__':
     config = config.BaselFaceModel2017Face12Dlib()
 
     # read image
-    filename = os.path.join(inpdir, 'basel_face_example.png')
+    filename = os.path.join(dirs.inpdir, 'basel_face_example.png')
     image = imutils.read(filename, width=width)
 
     # read model face
@@ -37,7 +34,7 @@ if __name__ == '__main__':
                                            camera=config.camera)
     fit.run()
     fit.report()
-    filename = os.path.join(outdir, 'fitlandmarks.png')
+    filename = os.path.join(dirs.outdir, 'fitlandmarks.png')
     fit.show(show=False, save=filename)
 
     # model to image registration
@@ -48,5 +45,5 @@ if __name__ == '__main__':
                                         iterations=iterations)
     fit.run()
     fit.report()
-    filename = os.path.join(outdir, 'fitcolors.png')
+    filename = os.path.join(dirs.outdir, 'fitcolors.png')
     fit.show(show=True, save=filename)

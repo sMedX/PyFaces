@@ -10,6 +10,7 @@ from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimu
 from tffaces.models import FaceModel, ModelTransform
 import cv2
 from tffaces import transforms
+from examples import dirs
 
 height = 512
 width = 512
@@ -18,7 +19,7 @@ width = 512
 if __name__ == '__main__':
 
     # initialize face model
-    filename = os.path.join(os.path.pardir, 'data', 'model2017-1_bfm_nomouth.h5')
+    filename = os.path.join(dirs.inpdir, 'model2017-1_bfm_nomouth.h5')
     model = FaceModel(filename=filename)
     # model.plot()
 
@@ -85,7 +86,7 @@ if __name__ == '__main__':
 
     # save image to file
     image_file = 'rendered_image.png'
-    image_file = os.path.join(os.path.pardir, 'data', image_file)
+    image_file = os.path.join(dirs.outdir, image_file)
     cv2.imwrite(image_file, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
 
     # transform model points to image

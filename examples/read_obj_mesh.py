@@ -6,20 +6,17 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import cv2
 from thirdparty import pywavefront as pw
-from thirdparty import mesh_renderer
-from examples import config
+from thirdparty.tf_mesh_renderer import mesh_renderer
+from examples import dirs, config
 
 image_height = 256
 image_width = 256
-
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
 
 # ======================================================================================================================
 if __name__ == '__main__':
 
     # read obj file
-    filename = os.path.join(inpdir, 'subject_01/Model/frontal1/obj/110920150452_new.obj')
+    filename = os.path.join(dirs.inpdir, 'subject_01/Model/frontal1/obj/110920150452_new.obj')
     data = pw.Wavefront(filename)
     print('number of points', data.number_of_points)
     print('number of faces', data.number_of_faces)
@@ -53,7 +50,7 @@ if __name__ == '__main__':
 
     # save image to file
     filename = os.path.splitext(os.path.basename(filename))[0] + '.png'
-    filename = os.path.join(outdir, filename)
+    filename = os.path.join(dirs.outdir, filename)
     cv2.imwrite(filename, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
 
     # show outputs

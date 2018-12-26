@@ -11,9 +11,7 @@ import cv2
 import numpy as np
 from thirdparty.facial_landmarks.imutils import face_utils
 from thirdparty.facial_landmarks import imutils
-
-inpdir = os.path.join(os.path.pardir, 'data')
-outdir = os.path.join(os.path.pardir, 'output')
+from examples import dirs
 
 width = 500
 
@@ -28,7 +26,7 @@ if __name__ == '__main__':
 
     # filename = os.path.join(inpdir, 'basel_face_example.png')
     # filename = os.path.join(inpdir, 'example_01.jpg')
-    filename = os.path.join(inpdir, 'example_02.jpg')
+    filename = os.path.join(dirs.inpdir, 'example_02.jpg')
 
     # shape predictor file
     shape_file = 'shape_predictor_68_face_landmarks.dat'
