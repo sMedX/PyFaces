@@ -14,12 +14,7 @@
 
 """Differentiable 3-D rendering of a triangle mesh."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow as tf
-
 from . import camera_utils
 from . import rasterize_triangles
 
@@ -85,6 +80,7 @@ def phong_shader(normals,
     normals = tf.reshape(normals, [batch_size, -1, 3])
     alphas = tf.reshape(alphas, [batch_size, -1, 1])
     diffuse_colors = tf.reshape(diffuse_colors, [batch_size, -1, 3])
+
     if camera_position is not None:
         specular_colors = tf.reshape(specular_colors, [batch_size, -1, 3])
 
@@ -110,12 +106,13 @@ def phong_shader(normals,
         tf.reduce_sum(
             tf.expand_dims(normals, axis=1) * directions_to_lights, axis=3), 0.0,
         1.0)  # [batch_size, light_count, pixel_count]
+
     diffuse_output = tf.expand_dims(
         diffuse_colors, axis=1) * tf.expand_dims(
         normals_dot_lights, axis=3) * tf.expand_dims(
         light_intensities, axis=2)
-    diffuse_output = tf.reduce_sum(
-        diffuse_output, axis=1)  # [batch_size, pixel_count, 3]
+
+    diffuse_output = tf.reduce_sum(diffuse_output, axis=1)  # [batch_size, pixel_count, 3]
     output_colors = tf.add(output_colors, diffuse_output)
 
     # Specular component
@@ -131,6 +128,7 @@ def phong_shader(normals,
             tf.expand_dims(direction_to_camera, axis=1) *
             mirror_reflection_direction,
             axis=3)
+
         # The specular component should only contribute when the reflection is
         # external:
         reflection_direction_dot_camera_direction = tf.clip_by_value(
@@ -142,27 +140,27 @@ def phong_shader(normals,
             normals_dot_lights != 0.0, reflection_direction_dot_camera_direction,
             tf.zeros_like(
                 reflection_direction_dot_camera_direction, dtype=tf.float32))
+
         # Reshape to support broadcasting the shininess coefficient, which rarely
         # varies per-vertex:
-        reflection_direction_dot_camera_direction = tf.reshape(
-            reflection_direction_dot_camera_direction,
-            [batch_size, light_count, image_height, image_width])
+        reflection_direction_dot_camera_direction = tf.reshape(reflection_direction_dot_camera_direction,
+                                                               [batch_size, light_count, image_height, image_width])
         shininess_coefficients = tf.expand_dims(shininess_coefficients, axis=1)
-        specularity = tf.reshape(
-            tf.pow(reflection_direction_dot_camera_direction,
-                   shininess_coefficients),
-            [batch_size, light_count, pixel_count, 1])
+        specularity = tf.reshape(tf.pow(reflection_direction_dot_camera_direction, shininess_coefficients),
+                                 [batch_size, light_count, pixel_count, 1])
+
         specular_output = tf.expand_dims(
             specular_colors, axis=1) * specularity * tf.expand_dims(
             light_intensities, axis=2)
         specular_output = tf.reduce_sum(specular_output, axis=1)
         output_colors = tf.add(output_colors, specular_output)
-    rgb_images = tf.reshape(output_colors,
-                            [batch_size, image_height, image_width, 3])
+
+    rgb_images = tf.reshape(output_colors, [batch_size, image_height, image_width, 3])
     alpha_images = tf.reshape(alphas, [batch_size, image_height, image_width, 1])
     valid_rgb_values = tf.concat(3 * [alpha_images > 0.5], axis=3)
-    rgb_images = tf.where(valid_rgb_values, rgb_images,
-                          tf.zeros_like(rgb_images, dtype=tf.float32))
+
+    rgb_images = tf.where(valid_rgb_values, rgb_images, tf.zeros_like(rgb_images, dtype=tf.float32))
+
     return tf.reverse(tf.concat([rgb_images, alpha_images], axis=3), axis=[1])
 
 

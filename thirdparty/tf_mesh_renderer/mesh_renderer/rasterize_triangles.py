@@ -13,20 +13,14 @@
 # limitations under the License.
 
 """Differentiable triangle rasterizer."""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import os
 import tensorflow as tf
-
 import inspect
 
-curr = os.path.dirname(inspect.stack()[0][1])
+dir_name = os.path.dirname(inspect.stack()[0][1])
+lib_path = '../bazel-out/k8-fastbuild/genfiles/mesh_renderer/kernels/rasterize_triangles_kernel.so'
+module_path = os.path.abspath(os.path.join(dir_name, lib_path))
 
-module_path = os.path.abspath(os.path.join(curr,
-                                           '../bazel-out/k8-fastbuild/genfiles/mesh_renderer/kernels/rasterize_triangles_kernel.so'))
 rasterize_triangles_module = tf.load_op_library(module_path)
 
 # This epsilon should be smaller than any valid barycentric reweighting factor
@@ -84,39 +78,32 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
         raise ValueError('Image height must be > 0.')
     if len(vertices.shape) != 3:
         raise ValueError('The vertex buffer must be 3D.')
+
     batch_size = vertices.shape[0].value
     vertex_count = vertices.shape[1].value
 
     # We map the coordinates to normalized device coordinates before passing
-    # the scene to the rendering kernel to keep as many ops in tensorflow as
-    # possible.
-
+    # the scene to the rendering kernel to keep as many ops in tensorflow as possible.
     homogeneous_coord = tf.ones([batch_size, vertex_count, 1], dtype=tf.float32)
     vertices_homogeneous = tf.concat([vertices, homogeneous_coord], 2)
 
-    # Vertices are given in row-major order, but the transformation pipeline is
-    # column major:
-    clip_space_points = tf.matmul(
-        vertices_homogeneous, projection_matrices, transpose_b=True)
+    # Vertices are given in row-major order, but the transformation pipeline is column major:
+    clip_space_points = tf.matmul(vertices_homogeneous, projection_matrices, transpose_b=True)
 
-    # Perspective divide, first thresholding the homogeneous coordinate to avoid
-    # the possibility of NaNs:
-    clip_space_points_w = tf.maximum(
-        tf.abs(clip_space_points[:, :, 3:4]),
-        minimum_perspective_threshold) * tf.sign(
-        clip_space_points[:, :, 3:4])
-    normalized_device_coordinates = (
-            clip_space_points[:, :, 0:3] / clip_space_points_w)
+    # Perspective divide, first thresholding the homogeneous coordinate to avoid the possibility of NaNs:
+    clip_space_points_w = tf.maximum(tf.abs(clip_space_points[:, :, 3:4]),
+                                     minimum_perspective_threshold) * tf.sign(clip_space_points[:, :, 3:4])
+    normalized_device_coordinates = clip_space_points[:, :, 0:3] / clip_space_points_w
 
     per_image_uncorrected_barycentric_coordinates = []
     per_image_vertex_ids = []
 
     for im in range(vertices.shape[0]):
-        barycentric_coords, triangle_ids, _ = rasterize_triangles_module.rasterize_triangles(
-            normalized_device_coordinates[im, :, :],
-            triangles,
-            image_width,
-            image_height)
+        barycentric_coords, triangle_ids, _ = \
+            rasterize_triangles_module.rasterize_triangles(normalized_device_coordinates[im, :, :],
+                                                           triangles,
+                                                           image_width,
+                                                           image_height)
 
         per_image_uncorrected_barycentric_coordinates.append(tf.reshape(barycentric_coords, [-1, 3]))
 
@@ -126,57 +113,43 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
         reindexed_ids = tf.add(vertex_ids, im * vertices.shape[1].value)
         per_image_vertex_ids.append(reindexed_ids)
 
-    uncorrected_barycentric_coordinates = tf.concat(
-        per_image_uncorrected_barycentric_coordinates, axis=0)
+    uncorrected_barycentric_coordinates = tf.concat(per_image_uncorrected_barycentric_coordinates, axis=0)
     vertex_ids = tf.concat(per_image_vertex_ids, axis=0)
 
     # Indexes with each pixel's clip-space triangle's extrema (the pixel's
     # 'corner points') ids to get the relevant properties for deferred shading.
-    flattened_vertex_attributes = tf.reshape(attributes,
-                                             [batch_size * vertex_count, -1])
+    flattened_vertex_attributes = tf.reshape(attributes, [batch_size * vertex_count, -1])
     corner_attributes = tf.gather(flattened_vertex_attributes, vertex_ids)
 
     # Barycentric interpolation is linear in the reciprocal of the homogeneous
     # W coordinate, so we use these weights to correct for the effects of
     # perspective distortion after rasterization.
-    perspective_distortion_weights = tf.reciprocal(
-        tf.reshape(clip_space_points_w, [-1]))
-    corner_distortion_weights = tf.gather(perspective_distortion_weights,
-                                          vertex_ids)
+    perspective_distortion_weights = tf.reciprocal(tf.reshape(clip_space_points_w, [-1]))
+    corner_distortion_weights = tf.gather(perspective_distortion_weights, vertex_ids)
 
     # Apply perspective correction to the barycentric coordinates. This step is
     # required since the rasterizer receives normalized-device coordinates (i.e.,
-    # after perspective division), so it can't apply perspective correction to the
-    # interpolated values.
-    weighted_barycentric_coordinates = tf.multiply(
-        uncorrected_barycentric_coordinates, corner_distortion_weights)
-    barycentric_reweighting_factor = tf.reduce_sum(
-        weighted_barycentric_coordinates, axis=1)
+    # after perspective division), so it can't apply perspective correction to the interpolated values.
+    weighted_barycentric_coordinates = tf.multiply(uncorrected_barycentric_coordinates, corner_distortion_weights)
+    barycentric_reweighting_factor = tf.reduce_sum(weighted_barycentric_coordinates, axis=1)
 
-    corrected_barycentric_coordinates = tf.divide(
-        weighted_barycentric_coordinates,
-        tf.expand_dims(
-            tf.maximum(barycentric_reweighting_factor,
-                       minimum_reweighting_threshold),
-            axis=1))
+    corrected_barycentric_coordinates = \
+        tf.divide(weighted_barycentric_coordinates,
+                  tf.expand_dims(tf.maximum(barycentric_reweighting_factor, minimum_reweighting_threshold), axis=1))
 
     # Computes the pixel attributes by interpolating the known attributes at the
     # corner points of the triangle interpolated with the barycentric coordinates.
-    weighted_vertex_attributes = tf.multiply(
-        corner_attributes,
-        tf.expand_dims(corrected_barycentric_coordinates, axis=2))
+    weighted_vertex_attributes = tf.multiply(corner_attributes,
+                                             tf.expand_dims(corrected_barycentric_coordinates, axis=2))
     summed_attributes = tf.reduce_sum(weighted_vertex_attributes, axis=1)
-    attribute_images = tf.reshape(summed_attributes,
-                                  [batch_size, image_height, image_width, -1])
+    attribute_images = tf.reshape(summed_attributes, [batch_size, image_height, image_width, -1])
 
     # Barycentric coordinates should approximately sum to one where there is
     # rendered geometry, but be exactly zero where there is not.
-    alphas = tf.clip_by_value(
-        tf.reduce_sum(2.0 * corrected_barycentric_coordinates, axis=1), 0.0, 1.0)
+    alphas = tf.clip_by_value(tf.reduce_sum(2.0 * corrected_barycentric_coordinates, axis=1), 0.0, 1.0)
     alphas = tf.reshape(alphas, [batch_size, image_height, image_width, 1])
 
-    attributes_with_background = (
-            alphas * attribute_images + (1.0 - alphas) * background_value)
+    attributes_with_background = alphas * attribute_images + (1.0 - alphas) * background_value
 
     return attributes_with_background
 
