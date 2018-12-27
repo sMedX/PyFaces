@@ -112,12 +112,13 @@ def rasterize_triangles(vertices, attributes, triangles, projection_matrices,
     per_image_vertex_ids = []
 
     for im in range(vertices.shape[0]):
-        barycentric_coords, triangle_ids, _ = (
-            rasterize_triangles_module.rasterize_triangles(
-                normalized_device_coordinates[im, :, :], triangles, image_width,
-                image_height))
-        per_image_uncorrected_barycentric_coordinates.append(
-            tf.reshape(barycentric_coords, [-1, 3]))
+        barycentric_coords, triangle_ids, _ = rasterize_triangles_module.rasterize_triangles(
+            normalized_device_coordinates[im, :, :],
+            triangles,
+            image_width,
+            image_height)
+
+        per_image_uncorrected_barycentric_coordinates.append(tf.reshape(barycentric_coords, [-1, 3]))
 
         # Gathers the vertex indices now because the indices don't contain a batch
         # identifier, and reindexes the vertex ids to point to a (batch,vertex_id)
