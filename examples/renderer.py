@@ -1,16 +1,13 @@
 __author__ = 'Ruslan N. Kosarev'
 
-import os
+import cv2
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-from thirdparty.tf_mesh_renderer.mesh_renderer.mesh_renderer import mesh_renderer
-from thirdparty.tf_mesh_renderer.mesh_renderer import camera_utils
-from thirdparty.tf_mesh_renderer.mesh_renderer.rasterize_triangles import minimum_perspective_threshold
 from tffaces.models import FaceModel, ModelTransform
-import cv2
+from tffaces.mesh_renderer import MeshRenderer
 from tffaces import transforms
-from examples import models, joininpdir, joinoutdir
+from examples import models, joinoutdir
 
 height = 512
 width = 512
@@ -53,7 +50,7 @@ if __name__ == '__main__':
     points, colors, normals = model_transform.transform()
 
     # initialize renderer
-    renderer = mesh_renderer(
+    renderer = MeshRenderer(
         points,
         model.shape.representer.cells,
         normals,
@@ -74,7 +71,7 @@ if __name__ == '__main__':
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
-    output = sess.run([renderer])
+    output = sess.run([renderer.renderer])
 
     # show rendered image
     image = output[0][0, :, :, :3]
@@ -88,27 +85,9 @@ if __name__ == '__main__':
     cv2.imwrite(filename, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
 
     # transform model points to image
-    camera_matrices = camera_utils.look_at(camera_position, camera_look_at, camera_up)
-    perspective_transform = camera_utils.perspective(width/height, fov_y, near_clip, far_clip)
-    transform = tf.matmul(perspective_transform, camera_matrices)
-
-    points = tf.concat((points, tf.ones([1, points.shape[1], 1], dtype=tf.float32)), axis=2)
-
-    clip_space_points = tf.matmul(points, transform, transpose_b=True)
-    clip_space_points_w = tf.maximum(tf.abs(clip_space_points[:, :, 3:4]), minimum_perspective_threshold) * tf.sign(clip_space_points[:, :, 3:4])
-
-    normalized_device_coordinates = clip_space_points[:, :, 0:3] / clip_space_points_w
-
-    x_image_coordinates = (normalized_device_coordinates[0, :, 0] + tf.constant(1, dtype=tf.float32))*tf.constant(width/2, dtype=tf.float32)
-    x_image_coordinates = tf.expand_dims(x_image_coordinates, axis=1)
-
-    y_image_coordinates = (tf.constant(1, dtype=tf.float32) - normalized_device_coordinates[0, :, 1])*tf.constant(height/2, dtype=tf.float32)
-    y_image_coordinates = tf.expand_dims(y_image_coordinates, axis=1)
-    image_coordinates = tf.concat((x_image_coordinates, y_image_coordinates), axis=1)
-
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
-    output = sess.run([image_coordinates])
+    output = sess.run([renderer.image_coordinates])
 
     x = output[0][:, 0]
     y = output[0][:, 1]
