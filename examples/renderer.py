@@ -84,6 +84,12 @@ if __name__ == '__main__':
     filename = joinoutdir('rendered_image.png')
     cv2.imwrite(filename, cv2.cvtColor(255*image, cv2.COLOR_RGB2BGR))
 
+    # show outputs
+    fig1, axes = plt.subplots(1, 2)
+    axes[0].imshow(image)
+    axes[1].imshow(mask)
+    plt.show()
+
     # transform model points to image
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
@@ -93,10 +99,8 @@ if __name__ == '__main__':
     y = output[0][:, 1]
 
     # show outputs
-    fig, axes = plt.subplots(1, 3)
-    axes[0].imshow(image)
-    axes[1].imshow(mask)
-    axes[2].imshow(image)
-    axes[2].scatter(x, y, c='r', marker='.', s=5)
+    fig2, axes = plt.subplots(1)
+    axes.imshow(image)
+    axes.scatter(x, y, c='r', marker='.', s=5)
     plt.show()
 
