@@ -17,6 +17,7 @@ if __name__ == '__main__':
 
     # initialize face model
     model = FaceModel(filename=models.bfm2017nomouth)
+    print(model)
     # model.plot()
 
     # camera position
@@ -68,14 +69,11 @@ if __name__ == '__main__':
         far_clip=far_clip
     )
 
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())
-    output = sess.run([renderer.renderer])
+    output = renderer.run(renderer.renderer)
 
     # show rendered image
-    image = output[0][0, :, :, :3]
-    mask = output[0][0, :, :, 3]
+    image = output[0, :, :, :3]
+    mask = output[0, :, :, 3]
 
     print('minimal value', np.min(image))
     print('maximal value', np.max(image))
@@ -91,16 +89,11 @@ if __name__ == '__main__':
     plt.show()
 
     # transform model points to image
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    output = sess.run([renderer.image_coordinates])
-
-    x = output[0][:, 0]
-    y = output[0][:, 1]
+    output = renderer.run(renderer.image_coordinates)
 
     # show outputs
     fig2, axes = plt.subplots(1)
     axes.imshow(image)
-    axes.scatter(x, y, c='r', marker='.', s=5)
+    axes.scatter(output[:, 0], output[:, 1], c='r', marker='.', s=5)
     plt.show()
 

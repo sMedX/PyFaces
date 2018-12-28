@@ -3,6 +3,7 @@ __author__ = 'Ruslan N. Kosarev'
 import os
 import inspect
 import tensorflow as tf
+from . import tfSession
 import math
 
 dir_name = os.path.join(os.path.dirname(inspect.stack()[0][1]), os.path.pardir, 'thirdparty/tf_mesh_renderer')
@@ -106,18 +107,22 @@ class MeshRenderer:
         """
         if len(vertices.shape) != 3:
             raise ValueError('Vertices must have shape [batch_size, vertex_count, 3].')
-        batch_size = vertices.shape[0].value
+        self.vertices = vertices
+
+        if len(vertices.shape) != 3:
+            raise ValueError('The vertex buffer must be 3D.')
+        self.triangles = triangles
+
+        self.batch_size = vertices.shape[0].value
+
         if len(normals.shape) != 3:
             raise ValueError('Normals must have shape [batch_size, vertex_count, 3].')
         if len(light_positions.shape) != 3:
-            raise ValueError(
-                'Light_positions must have shape [batch_size, light_count, 3].')
+            raise ValueError('Light_positions must have shape [batch_size, light_count, 3].')
         if len(light_intensities.shape) != 3:
-            raise ValueError(
-                'Light_intensities must have shape [batch_size, light_count, 3].')
+            raise ValueError('Light_intensities must have shape [batch_size, light_count, 3].')
         if len(diffuse_colors.shape) != 3:
-            raise ValueError(
-                'vertex_diffuse_colors must have shape [batch_size, vertex_count, 3].')
+            raise ValueError('vertex_diffuse_colors must have shape [batch_size, vertex_count, 3].')
 
         if not image_width > 0:
             raise ValueError('Image width must be > 0.')
@@ -127,33 +132,33 @@ class MeshRenderer:
             raise ValueError('Image height must be > 0.')
         self.image_height = image_height
 
-        if ambient_color is not None and ambient_color.get_shape().as_list() != [batch_size, 3]:
+        if ambient_color is not None and ambient_color.get_shape().as_list() != [self.batch_size, 3]:
             raise ValueError('Ambient_color must have shape [batch_size, 3].')
         self.ambient_color = ambient_color
 
         if camera_position.get_shape().as_list() == [3]:
-            camera_position = tf.tile(tf.expand_dims(camera_position, axis=0), [batch_size, 1])
-        elif camera_position.get_shape().as_list() != [batch_size, 3]:
+            camera_position = tf.tile(tf.expand_dims(camera_position, axis=0), [self.batch_size, 1])
+        elif camera_position.get_shape().as_list() != [self.batch_size, 3]:
             raise ValueError('Camera_position must have shape [batch_size, 3]')
         self.camera_position = camera_position
 
         if camera_look_at.get_shape().as_list() == [3]:
-            camera_look_at = tf.tile(tf.expand_dims(camera_look_at, axis=0), [batch_size, 1])
-        elif camera_look_at.get_shape().as_list() != [batch_size, 3]:
+            camera_look_at = tf.tile(tf.expand_dims(camera_look_at, axis=0), [self.batch_size, 1])
+        elif camera_look_at.get_shape().as_list() != [self.batch_size, 3]:
             raise ValueError('Camera_lookat must have shape [batch_size, 3]')
         self.camera_look_at = camera_look_at
 
         if camera_up.get_shape().as_list() == [3]:
             camera_up = tf.tile(tf.expand_dims(camera_up, axis=0), [batch_size, 1])
-        elif camera_up.get_shape().as_list() != [batch_size, 3]:
+        elif camera_up.get_shape().as_list() != [self.batch_size, 3]:
             raise ValueError('Camera_up must have shape [batch_size, 3]')
         self.camera_up = camera_up
 
         if isinstance(fov_y, float):
-            fov_y = tf.constant(batch_size * [fov_y], dtype=tf.float32)
+            fov_y = tf.constant(self.batch_size * [fov_y], dtype=tf.float32)
         elif not fov_y.get_shape().as_list():
-            fov_y = tf.tile(tf.expand_dims(fov_y, 0), [batch_size])
-        elif fov_y.get_shape().as_list() != [batch_size]:
+            fov_y = tf.tile(tf.expand_dims(fov_y, 0), [self.batch_size])
+        elif fov_y.get_shape().as_list() != [self.batch_size]:
             raise ValueError('Fov_y must be a float, a 0D tensor, or a 1D tensor with shape [batch_size]')
         self.fov_y = fov_y
 
@@ -161,15 +166,15 @@ class MeshRenderer:
             near_clip = tf.constant(batch_size * [near_clip], dtype=tf.float32)
         elif not near_clip.get_shape().as_list():
             near_clip = tf.tile(tf.expand_dims(near_clip, 0), [batch_size])
-        elif near_clip.get_shape().as_list() != [batch_size]:
+        elif near_clip.get_shape().as_list() != [self.batch_size]:
             raise ValueError('Near_clip must be a float, a 0D tensor, or a 1D tensor with shape [batch_size]')
         self.near_clip = near_clip
 
         if isinstance(far_clip, float):
-            far_clip = tf.constant(batch_size * [far_clip], dtype=tf.float32)
+            far_clip = tf.constant(self.batch_size * [far_clip], dtype=tf.float32)
         elif not far_clip.get_shape().as_list():
-            far_clip = tf.tile(tf.expand_dims(far_clip, 0), [batch_size])
-        elif far_clip.get_shape().as_list() != [batch_size]:
+            far_clip = tf.tile(tf.expand_dims(far_clip, 0), [self.batch_size])
+        elif far_clip.get_shape().as_list() != [self.batch_size]:
             raise ValueError('Far_clip must be a float, a 0D tensor, or a 1D tensor with shape [batch_size]')
         self.far_clip = far_clip
 
@@ -190,12 +195,12 @@ class MeshRenderer:
             # If we don't have per-vertex coefficients, we can just reshape the input shininess to broadcast later,
             # rather than interpolating an additional vertex attribute:
             if len(shininess_coefficients.shape) < 2:
-                vertex_attributes = tf.concat([normals, vertices, diffuse_colors, specular_colors], axis=2)
+                self.vertex_attributes = tf.concat([normals, vertices, diffuse_colors, specular_colors], axis=2)
             else:
-                vertex_attributes = tf.concat([normals, vertices, diffuse_colors, specular_colors,
+                self.vertex_attributes = tf.concat([normals, vertices, diffuse_colors, specular_colors,
                                                tf.expand_dims(shininess_coefficients, axis=2)], axis=2)
         else:
-            vertex_attributes = tf.concat([normals, vertices, diffuse_colors], axis=2)
+            self.vertex_attributes = tf.concat([normals, vertices, diffuse_colors], axis=2)
 
         self.normalized_device_coordinates = None
         self.image_coordinates = None
@@ -204,23 +209,27 @@ class MeshRenderer:
         self.perspective_transforms = self.camera_perspective(self.image_width / self.image_height, self.fov_y, self.near_clip, self.far_clip)
         self.clip_space_transforms = tf.matmul(self.perspective_transforms, self.camera_matrices)
 
-        pixel_attributes = self.rasterize_triangles(vertices,
-                                                    vertex_attributes,
-                                                    triangles,
-                                                    self.clip_space_transforms,
-                                                    [-1] * vertex_attributes.shape[2].value)
+        # --------------------------------------------------------------------------------------------------------------
+        self.background_value = [-1] * self.vertex_attributes.shape[2].value
+
+        # rasterize triangles
+        self.pixel_attributes = self.rasterize_triangles(self.vertices,
+                                                         self.vertex_attributes,
+                                                         self.triangles,
+                                                         self.clip_space_transforms,
+                                                         self.background_value)
 
         # Extract the interpolated vertex attributes from the pixel buffer and supply them to the shader:
-        pixel_normals = tf.nn.l2_normalize(pixel_attributes[:, :, :, 0:3], axis=3)
-        pixel_positions = pixel_attributes[:, :, :, 3:6]
-        diffuse_colors = pixel_attributes[:, :, :, 6:9]
+        pixel_normals = tf.nn.l2_normalize(self.pixel_attributes[:, :, :, 0:3], axis=3)
+        pixel_positions = self.pixel_attributes[:, :, :, 3:6]
+        diffuse_colors = self.pixel_attributes[:, :, :, 6:9]
 
         if specular_colors is not None:
-            specular_colors = pixel_attributes[:, :, :, 9:12]
+            specular_colors = self.pixel_attributes[:, :, :, 9:12]
             # Retrieve the interpolated shininess coefficients if necessary, or just
             # reshape our input for broadcasting:
             if len(shininess_coefficients.shape) == 2:
-                shininess_coefficients = pixel_attributes[:, :, :, 12]
+                shininess_coefficients = self.pixel_attributes[:, :, :, 12]
             else:
                 shininess_coefficients = tf.reshape(shininess_coefficients, [-1, 1, 1])
 
@@ -236,6 +245,10 @@ class MeshRenderer:
                                           specular_colors=specular_colors,
                                           shininess_coefficients=shininess_coefficients,
                                           ambient_color=self.ambient_color)
+
+    def run(self, inputs):
+        session = tfSession()
+        return session.run(inputs)
 
     # ------------------------------------------------------------------------------------------------------------------
     def phong_shader(self,
@@ -410,8 +423,6 @@ class MeshRenderer:
               respect to this tensor are not available.
           projection_matrices: 3-D float tensor with shape [batch_size, 4, 4]
               containing model-view-perspective projection matrices.
-          image_width: int specifying desired output image width in pixels.
-          image_height: int specifying desired output image height in pixels.
           background_value: a 1-D float32 tensor with shape [attribute_count]. Pixels
               that lie outside all triangles take this value.
 
@@ -423,8 +434,6 @@ class MeshRenderer:
         Raises:
           ValueError: An invalid argument to the method is detected.
         """
-        if len(vertices.shape) != 3:
-            raise ValueError('The vertex buffer must be 3D.')
 
         batch_size = vertices.shape[0].value
         vertex_count = vertices.shape[1].value
@@ -450,40 +459,39 @@ class MeshRenderer:
 
         self.image_coordinates = tf.concat((x_image_coordinates, y_image_coordinates), axis=1)
 
-        per_image_uncorrected_barycentric_coordinates = []
-        per_image_vertex_ids = []
+        self.per_image_vertex_ids = []
+        self.per_image_uncorrected_barycentric_coordinates = []
 
         for im in range(vertices.shape[0]):
             barycentric_coords, triangle_ids, _ = \
                 rasterize_triangles_module.rasterize_triangles(
-                    self.normalized_device_coordinates[im, :, :], triangles, self.image_width, self.image_height)
+                    self.normalized_device_coordinates[im], triangles, self.image_width, self.image_height)
 
-            per_image_uncorrected_barycentric_coordinates.append(tf.reshape(barycentric_coords, [-1, 3]))
+            self.per_image_uncorrected_barycentric_coordinates.append(tf.reshape(barycentric_coords, [-1, 3]))
 
             # Gathers the vertex indices now because the indices don't contain a batch
             # identifier, and reindexes the vertex ids to point to a (batch,vertex_id)
-            vertex_ids = tf.gather(triangles, tf.reshape(triangle_ids, [-1]))
-            reindexed_ids = tf.add(vertex_ids, im * vertices.shape[1].value)
-            per_image_vertex_ids.append(reindexed_ids)
+            vertex_ids_ = tf.gather(triangles, tf.reshape(triangle_ids, [-1]))
+            self.per_image_vertex_ids.append(tf.add(vertex_ids_, im * vertices.shape[1].value))
 
-        uncorrected_barycentric_coordinates = tf.concat(per_image_uncorrected_barycentric_coordinates, axis=0)
-        vertex_ids = tf.concat(per_image_vertex_ids, axis=0)
+        self.uncorrected_barycentric_coordinates = tf.concat(self.per_image_uncorrected_barycentric_coordinates, axis=0)
+        self.vertex_ids = tf.concat(self.per_image_vertex_ids, axis=0)
 
         # Indexes with each pixel's clip-space triangle's extrema (the pixel's
         # 'corner points') ids to get the relevant properties for deferred shading.
         flattened_vertex_attributes = tf.reshape(attributes, [batch_size * vertex_count, -1])
-        corner_attributes = tf.gather(flattened_vertex_attributes, vertex_ids)
+        corner_attributes = tf.gather(flattened_vertex_attributes, self.vertex_ids)
 
         # Barycentric interpolation is linear in the reciprocal of the homogeneous
         # W coordinate, so we use these weights to correct for the effects of
         # perspective distortion after rasterization.
         perspective_distortion_weights = tf.reciprocal(tf.reshape(clip_space_points_w, [-1]))
-        corner_distortion_weights = tf.gather(perspective_distortion_weights, vertex_ids)
+        corner_distortion_weights = tf.gather(perspective_distortion_weights, self.vertex_ids)
 
         # Apply perspective correction to the barycentric coordinates. This step is
         # required since the rasterizer receives normalized-device coordinates (i.e.,
         # after perspective division), so it can't apply perspective correction to the interpolated values.
-        weighted_barycentric_coordinates = tf.multiply(uncorrected_barycentric_coordinates, corner_distortion_weights)
+        weighted_barycentric_coordinates = tf.multiply(self.uncorrected_barycentric_coordinates, corner_distortion_weights)
         barycentric_reweighting_factor = tf.reduce_sum(weighted_barycentric_coordinates, axis=1)
 
         corrected_barycentric_coordinates = \
@@ -493,7 +501,7 @@ class MeshRenderer:
         # Computes the pixel attributes by interpolating the known attributes at the
         # corner points of the triangle interpolated with the barycentric coordinates.
         weighted_vertex_attributes = tf.multiply(corner_attributes,
-                                             tf.expand_dims(corrected_barycentric_coordinates, axis=2))
+                                                 tf.expand_dims(corrected_barycentric_coordinates, axis=2))
         summed_attributes = tf.reduce_sum(weighted_vertex_attributes, axis=1)
         attribute_images = tf.reshape(summed_attributes, [batch_size, self.image_height, self.image_width, -1])
 
