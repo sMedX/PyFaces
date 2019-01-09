@@ -149,7 +149,7 @@ class MeshRenderer:
         self.camera_look_at = camera_look_at
 
         if camera_up.get_shape().as_list() == [3]:
-            camera_up = tf.tile(tf.expand_dims(camera_up, axis=0), [batch_size, 1])
+            camera_up = tf.tile(tf.expand_dims(camera_up, axis=0), [self.batch_size, 1])
         elif camera_up.get_shape().as_list() != [self.batch_size, 3]:
             raise ValueError('Camera_up must have shape [batch_size, 3]')
         self.camera_up = camera_up
@@ -163,9 +163,9 @@ class MeshRenderer:
         self.fov_y = fov_y
 
         if isinstance(near_clip, float):
-            near_clip = tf.constant(batch_size * [near_clip], dtype=tf.float32)
+            near_clip = tf.constant(self.batch_size * [near_clip], dtype=tf.float32)
         elif not near_clip.get_shape().as_list():
-            near_clip = tf.tile(tf.expand_dims(near_clip, 0), [batch_size])
+            near_clip = tf.tile(tf.expand_dims(near_clip, 0), [self.batch_size])
         elif near_clip.get_shape().as_list() != [self.batch_size]:
             raise ValueError('Near_clip must be a float, a 0D tensor, or a 1D tensor with shape [batch_size]')
         self.near_clip = near_clip
@@ -469,16 +469,16 @@ class MeshRenderer:
 
             self.per_image_uncorrected_barycentric_coordinates.append(tf.reshape(barycentric_coords, [-1, 3]))
 
-            # Gathers the vertex indices now because the indices don't contain a batch
-            # identifier, and reindexes the vertex ids to point to a (batch,vertex_id)
+            # Gathers the vertex indices now because the indices don't contain a batch identifier,
+            # and reindexes the vertex ids to point to a (batch,vertex_id)
             vertex_ids_ = tf.gather(triangles, tf.reshape(triangle_ids, [-1]))
             self.per_image_vertex_ids.append(tf.add(vertex_ids_, im * vertices.shape[1].value))
 
         self.uncorrected_barycentric_coordinates = tf.concat(self.per_image_uncorrected_barycentric_coordinates, axis=0)
         self.vertex_ids = tf.concat(self.per_image_vertex_ids, axis=0)
 
-        # Indexes with each pixel's clip-space triangle's extrema (the pixel's
-        # 'corner points') ids to get the relevant properties for deferred shading.
+        # Indexes with each pixel's clip-space triangle's extrema (the pixel's 'corner points') ids
+        # to get the relevant properties for deferred shading.
         flattened_vertex_attributes = tf.reshape(attributes, [batch_size * vertex_count, -1])
         corner_attributes = tf.gather(flattened_vertex_attributes, self.vertex_ids)
 
