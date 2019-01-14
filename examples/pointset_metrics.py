@@ -26,5 +26,5 @@ if __name__ == '__main__':
     print(model)
 
     # compute metrics
-    metrics = MovingToFixedPointSetMetrics(moving=points, fixed=data.points)
+    metrics = MovingToFixedPointSetMetrics(moving=points, fixed=data.points, registration=True)
     print(metrics)
