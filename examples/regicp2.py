@@ -48,12 +48,3 @@ if __name__ == "__main__":
     print(reg_p2p.transformation)
     print("")
     draw_registration_result(source, target, reg_p2p.transformation)
-
-    print("Apply point-to-plane ICP")
-    reg_p2l = open3d.registration_icp(source, target, threshold, trans_init,
-                                      open3d.TransformationEstimationPointToPlane())
-    print(reg_p2l)
-    print("Transformation is:")
-    print(reg_p2l.transformation)
-    print("")
-    draw_registration_result(source, target, reg_p2l.transformation)
