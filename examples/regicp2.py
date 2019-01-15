@@ -17,6 +17,9 @@ def draw_registration_result(source, target, transformation):
 
 
 def mesh2pcd(mesh):
+    if mesh.compute_vertex_normals() is False:
+        mesh.compute_vertex_normals()
+
     pcd = open3d.PointCloud()
     pcd.points = mesh.vertices
     pcd.normals = mesh.vertex_normals
@@ -27,12 +30,10 @@ def mesh2pcd(mesh):
 if __name__ == "__main__":
     tfile = os.path.join(dirs.inpdir, 'open3d/110920150452_new.ply')
     mesh = open3d.read_triangle_mesh(tfile)
-    mesh.compute_vertex_normals()
     target = mesh2pcd(mesh)
 
     sfile = os.path.join(dirs.inpdir, 'open3d/mean_face.ply')
     mesh = open3d.read_triangle_mesh(sfile)
-    mesh.compute_vertex_normals()
     source = mesh2pcd(mesh)
 
     open3d.draw_geometries([target])
