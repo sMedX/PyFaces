@@ -8,7 +8,7 @@ import time
 
 # point set metrics
 class MovingToFixedPointSetMetrics:
-    def __init__(self, moving, fixed, registration=False):
+    def __init__(self, moving, fixed, registration=0):
         self.moving_points = moving
         self.fixed_points = fixed
         self.rmsd = None
@@ -19,7 +19,7 @@ class MovingToFixedPointSetMetrics:
         self.transform = None
 
         # perform registration
-        if self.registration is True:
+        if self.registration > 0:
             self._perform_registration()
 
         # compute metrics
@@ -54,8 +54,17 @@ class MovingToFixedPointSetMetrics:
         moving = array2pcd(self.moving_points)
 
         init = np.asarray([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-        regp2p = open3d.registration_icp(moving, fixed, np.Inf, init, open3d.TransformationEstimationPointToPoint())
+
+        if self.registration == 1:
+            estimator = open3d.TransformationEstimationPointToPoint()
+        else:
+            moving.compute_vertex_normals()
+            fixed.compute_vertex_normals()
+            estimator = open3d.TransformationEstimationPointToPoint()
+
+        regp2p = open3d.registration_icp(moving, fixed, np.Inf, init, estimator)
         self.transform = regp2p.transformation
+
         print(regp2p)
 
         moving_points = np.concatenate((self.moving_points, np.ones((self.number_of_moving_points, 1))), axis=1)
@@ -78,3 +87,23 @@ class MovingToFixedPointSetMetrics:
         self.rmsd = np.sqrt(self.rmsd/self.number_of_moving_points)
 
         self.elapsed_time = time.time() - start_time
+
+
+# point set metrics
+class Point2PlaneMetrics:
+    def __init__(self, moving, fixed, registration=True):
+        self.moving_points = moving
+        self.fixed_points = fixed
+        self.rmsd = None
+        self.mean = None
+        self.elapsed_time = None
+
+        self.registration = registration
+        self.transform = None
+
+        # perform registration
+        if self.registration is True:
+            self._perform_registration()
+
+        # compute metrics
+        self._compute()
