@@ -13,6 +13,6 @@ if __name__ == '__main__':
     # read obj file
     filename = os.path.join(dirs.inpdir, 'subject_01/Model/frontal1/obj/110920150452.obj')
     data = pw.Wavefront(filename)
-    
+
     print('number of points', data.number_of_points)
     print('number of faces ', data.number_of_faces)

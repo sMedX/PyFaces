@@ -16,35 +16,50 @@ def draw_registration_result(source, target, transformation):
     open3d.draw_geometries([source_temp, target_temp])
 
 
+def mesh2pcd(mesh):
+    pcd = open3d.PointCloud()
+    pcd.points = mesh.vertices
+    pcd.normals = mesh.vertex_normals
+    return pcd
+
+
 # ======================================================================================================================
 if __name__ == "__main__":
     tfile = os.path.join(dirs.inpdir, 'open3d/110920150452_new.ply')
-    target = open3d.read_point_cloud(tfile)
+    mesh = open3d.read_triangle_mesh(tfile)
+    mesh.compute_vertex_normals()
+    target = mesh2pcd(mesh)
 
     sfile = os.path.join(dirs.inpdir, 'open3d/mean_face.ply')
-    source = open3d.read_point_cloud(sfile)
+    mesh = open3d.read_triangle_mesh(sfile)
+    mesh.compute_vertex_normals()
+    source = mesh2pcd(mesh)
 
     open3d.draw_geometries([target])
     open3d.draw_geometries([source])
 
-    threshold = 1000
-
-    trans_init = np.asarray(
-                [[1, 0, 0, 0],
-                 [0, 1, 0, 0],
-                 [0, 0, 1, 0],
-                 [0, 0, 0, 1]])
+    trans_init = np.asarray([[1, 0, 0, 0],
+                             [0, 1, 0, 0],
+                             [0, 0, 1, 0],
+                             [0, 0, 0, 1]])
 
     draw_registration_result(source, target, trans_init)
     print("Initial alignment")
-    evaluation = open3d.evaluate_registration(source, target, threshold, trans_init)
+    evaluation = open3d.evaluate_registration(source, target, np.Inf, trans_init)
     print(evaluation)
 
     print("Apply point-to-point ICP")
-    reg_p2p = open3d.registration_icp(source, target, threshold, trans_init,
-                                      open3d.TransformationEstimationPointToPoint())
+    reg_p2p = open3d.registration_icp(source, target, np.Inf, trans_init, open3d.TransformationEstimationPointToPoint())
     print(reg_p2p)
     print("Transformation is:")
     print(reg_p2p.transformation)
     print("")
     draw_registration_result(source, target, reg_p2p.transformation)
+
+    print("Apply point-to-plane ICP")
+    reg_p2l = open3d.registration_icp(source, target, np.Inf, trans_init, open3d.TransformationEstimationPointToPlane())
+    print(reg_p2l)
+    print("Transformation is:")
+    print(reg_p2l.transformation)
+    print("")
+    draw_registration_result(source, target, reg_p2l.transformation)
