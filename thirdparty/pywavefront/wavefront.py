@@ -94,7 +94,7 @@ class Wavefront(object):
 
     @property
     def colors(self):
-        return np.array(self.vertices)[:, 3:]
+        return np.array(self.vertices)[:,3:6]
 
     @property
     def normals(self):

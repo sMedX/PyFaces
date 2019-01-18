@@ -179,6 +179,10 @@ class ShapeModel(ModelBase):
         shape = (self.representer.number_of_points, self.representer.dimension)
         return np.reshape(self.np_mean, shape)
 
+    @property
+    def cells(self):
+        return np.transpose(self.representer.np_cells)
+
 
 # color model
 class ColorModel(ModelBase):
