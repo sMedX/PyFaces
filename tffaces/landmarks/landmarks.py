@@ -18,7 +18,7 @@ class LandmarksBase:
         return self._landmarks
 
     @property
-    def coordinates(self):
+    def points(self):
         return np.array([landmark.point for landmark in self.landmarks])
 
     @property
