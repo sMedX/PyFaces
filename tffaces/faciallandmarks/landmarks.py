@@ -14,6 +14,10 @@ class LandmarksBase:
         self._landmarks = None
 
     @property
+    def number_of_landmarks(self):
+        return len(self._landmarks)
+
+    @property
     def landmarks(self):
         return self._landmarks
 
@@ -26,7 +30,7 @@ class LandmarksBase:
         return tuple([landmark.name for landmark in self.landmarks])
 
     def __repr__(self):
-        info = '{}\n'.format(self.__class__.__name__)
+        info = '{} (number of landmarks {})\n'.format(self.__class__.__name__, self.number_of_landmarks)
         for landmark in self.landmarks:
             info = info + '{}, {}\n'.format(landmark.point.tolist(), landmark.name)
         return info
